@@ -1,504 +1,1416 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STREAM HUB // Real-Time Broadcasting</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;800&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ruang Siaran Langsung — Live Broadcast</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ====================== RESET & BASE ====================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; width: 100%; overflow: hidden; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #050810;
+      color: #e8eaf0;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      user-select: none;
+    }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* ====================== LOADING SCREEN ====================== */
+    #loader {
+      position: fixed; inset: 0; z-index: 9999;
+      background: radial-gradient(ellipse at center, #0a1428 0%, #030610 70%, #000 100%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      transition: opacity 0.9s ease, visibility 0.9s ease;
+    }
+    #loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    .loader-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(0,200,255,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,200,255,0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: radial-gradient(circle at center, black 30%, transparent 80%);
+      animation: gridPulse 4s ease-in-out infinite;
+    }
+    @keyframes gridPulse { 0%,100% { opacity: 0.4; } 50% { opacity: 0.8; } }
+    .loader-ring {
+      width: 200px; height: 200px;
+      position: relative; margin-bottom: 60px;
+    }
+    .loader-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .loader-ring .bg { stroke: rgba(255,255,255,0.08); stroke-width: 4; fill: none; }
+    .loader-ring .fg {
+      stroke: url(#loaderGrad); stroke-width: 4; fill: none;
+      stroke-linecap: round;
+      stroke-dasharray: 565.48; stroke-dashoffset: 565.48;
+      filter: drop-shadow(0 0 8px rgba(0,255,170,0.6));
+      transition: stroke-dashoffset 0.1s linear;
+    }
+    .loader-ring::after {
+      content: ''; position: absolute; inset: 30px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,255,170,0.15), transparent 70%);
+      animation: corePulse 2s ease-in-out infinite;
+    }
+    @keyframes corePulse { 0%,100% { transform: scale(0.9); opacity: 0.5; } 50% { transform: scale(1.1); opacity: 1; } }
+    .loader-center {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center;
+    }
+    .loader-percent {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 38px; font-weight: 700;
+      color: #00ffaa;
+      text-shadow: 0 0 20px rgba(0,255,170,0.6);
+      letter-spacing: -0.02em;
+    }
+    .loader-label {
+      font-size: 11px; letter-spacing: 0.4em; text-transform: uppercase;
+      color: #4a5568; margin-top: 8px;
+    }
+    .loader-title {
+      font-size: 28px; font-weight: 800; letter-spacing: 0.05em;
+      background: linear-gradient(90deg, #00ffaa, #00b8ff, #6e8aff);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+    }
+    .loader-status {
+      font-family: 'JetBrains Mono', monospace; font-size: 13px;
+      color: #8b95a8; max-width: 480px; text-align: center; line-height: 1.6;
+      min-height: 22px;
+    }
+    .loader-bar-wrap {
+      width: 460px; max-width: 80vw; height: 6px;
+      background: rgba(255,255,255,0.06); border-radius: 100px;
+      overflow: hidden; margin-top: 32px; position: relative;
+    }
+    .loader-bar {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, #00ffaa, #00b8ff, #6e8aff);
+      box-shadow: 0 0 20px rgba(0,184,255,0.6);
+      transition: width 0.1s linear; border-radius: 100px;
+    }
+    .loader-stages {
+      display: flex; gap: 24px; margin-top: 40px;
+      font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
+    }
+    .loader-stages span { color: #2a3548; transition: color 0.4s; }
+    .loader-stages span.active { color: #00ffaa; text-shadow: 0 0 10px rgba(0,255,170,0.5); }
+    .loader-stages span.done { color: #4a90ff; }
+
+    /* ====================== MAIN APP ====================== */
+    #app { opacity: 0; transition: opacity 0.8s ease; }
+    #app.ready { opacity: 1; }
+
+    /* Top bar */
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; height: 64px;
+      background: linear-gradient(180deg, rgba(8,12,24,0.95), rgba(8,12,24,0.7));
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px; z-index: 100;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, #00ffaa, #00b8ff);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 24px rgba(0,255,170,0.4);
+    }
+    .brand-icon svg { width: 20px; height: 20px; }
+    .brand-name {
+      font-size: 16px; font-weight: 800; letter-spacing: 0.04em;
+      background: linear-gradient(90deg, #fff, #b8c5d6);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .brand-tag {
+      font-size: 10px; letter-spacing: 0.3em; color: #4a5568;
+      text-transform: uppercase; margin-top: 2px;
+    }
+    .topbar-center { display: flex; gap: 24px; align-items: center; }
+    .topbar-stat {
+      display: flex; flex-direction: column; align-items: center;
+      font-size: 10px; color: #6b7588; letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+    .topbar-stat strong {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px; color: #e8eaf0; margin-top: 2px;
+    }
+    .topbar-stat strong.live-count { color: #00ffaa; }
+
+    /* STATUS INDICATOR (top-right corner, like screenshot 825) */
+    .status-indicator {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 16px; border-radius: 12px;
+      background: rgba(15, 22, 38, 0.85);
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      cursor: pointer; transition: all 0.3s ease;
+      position: relative;
+    }
+    .status-indicator:hover { transform: translateY(-1px); border-color: rgba(255,255,255,0.18); }
+    .status-dot {
+      width: 14px; height: 14px; border-radius: 50%;
+      position: relative; flex-shrink: 0;
+      transition: background 0.4s, box-shadow 0.4s;
+    }
+    .status-dot::before {
+      content: ''; position: absolute; inset: -6px;
+      border-radius: 50%; animation: dotPulse 2s ease-in-out infinite;
+    }
+    @keyframes dotPulse {
+      0%,100% { transform: scale(0.8); opacity: 0.6; }
+      50% { transform: scale(1.6); opacity: 0; }
+    }
+    .status-indicator.offline .status-dot {
+      background: #ff3b3b;
+      box-shadow: 0 0 12px #ff3b3b, 0 0 24px rgba(255,59,59,0.4);
+    }
+    .status-indicator.offline .status-dot::before { background: rgba(255,59,59,0.4); }
+    .status-indicator.online .status-dot {
+      background: #ff8a00;
+      box-shadow: 0 0 12px #ff8a00, 0 0 24px rgba(255,138,0,0.4);
+    }
+    .status-indicator.online .status-dot::before { background: rgba(255,138,0,0.4); }
+    .status-indicator.live .status-dot {
+      background: #00ff7a;
+      box-shadow: 0 0 14px #00ff7a, 0 0 30px rgba(0,255,122,0.5);
+    }
+    .status-indicator.live .status-dot::before { background: rgba(0,255,122,0.5); }
+    .status-text { display: flex; flex-direction: column; line-height: 1.2; }
+    .status-label { font-size: 9px; letter-spacing: 0.2em; color: #6b7588; text-transform: uppercase; }
+    .status-value { font-size: 13px; font-weight: 700; letter-spacing: 0.03em; }
+    .status-indicator.offline .status-value { color: #ff3b3b; }
+    .status-indicator.online .status-value { color: #ff8a00; }
+    .status-indicator.live .status-value { color: #00ff7a; }
+    .status-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; color: #6b7588; margin-left: 4px;
+      min-width: 60px; text-align: right;
+    }
+    .status-indicator.live .status-time { color: #00ff7a; }
+
+    /* Main content area */
+    .main {
+      position: absolute; top: 64px; left: 0; right: 0; bottom: 96px;
+      display: grid; grid-template-columns: 1fr 320px; gap: 0;
+    }
+
+    /* Quad video view (like screenshot 789, but more modern) */
+    .stage {
+      position: relative; padding: 20px;
+      background: radial-gradient(ellipse at center, #0a1020 0%, #03060e 100%);
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .stage-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 4px;
+    }
+    .stage-title {
+      font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
+      color: #6b7588;
+    }
+    .stage-meta {
+      display: flex; gap: 16px; font-size: 11px;
+      font-family: 'JetBrains Mono', monospace; color: #6b7588;
+    }
+    .stage-meta span strong { color: #e8eaf0; }
+    .quad {
+      flex: 1;
+      display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
+      gap: 12px; min-height: 0;
+    }
+    .tile {
+      position: relative; background: #000; border-radius: 14px;
+      overflow: hidden; border: 1px solid rgba(255,255,255,0.06);
+      transition: all 0.4s ease;
+    }
+    .tile::before {
+      content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 4;
+      background: linear-gradient(180deg, transparent 70%, rgba(0,0,0,0.7) 100%);
+    }
+    .tile.live-feed { border-color: rgba(0,255,170,0.3); }
+    .tile.live-feed::after {
+      content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 5;
+      box-shadow: inset 0 0 60px rgba(0,255,170,0.08);
+    }
+    .tile video, .tile canvas {
+      width: 100%; height: 100%; object-fit: cover;
+      transform: scaleX(-1); /* mirror selfie */
+    }
+    .tile video.no-mirror, .tile canvas.no-mirror { transform: none; }
+    .tile-label {
+      position: absolute; top: 12px; left: 12px; z-index: 6;
+      padding: 4px 10px; border-radius: 6px;
+      background: rgba(0,0,0,0.6); backdrop-filter: blur(10px);
+      font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase;
+      color: #e8eaf0; font-weight: 600;
+    }
+    .tile-feed-id {
+      position: absolute; bottom: 12px; left: 12px; z-index: 6;
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      color: #8b95a8;
+    }
+    .tile-live-badge {
+      position: absolute; top: 12px; right: 12px; z-index: 6;
+      padding: 4px 8px; border-radius: 6px;
+      background: rgba(255,59,59,0.9);
+      font-size: 9px; font-weight: 800; letter-spacing: 0.2em;
+      color: #fff;
+      display: none;
+    }
+    .tile.live-feed .tile-live-badge { display: block; animation: blink 1.5s infinite; }
+    @keyframes blink { 50% { opacity: 0.4; } }
+    .tile-empty {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; z-index: 2;
+      color: #2a3548; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+    }
+    .tile-empty svg { width: 36px; height: 36px; margin-bottom: 12px; opacity: 0.4; }
+
+    /* Right sidebar */
+    .sidebar {
+      background: linear-gradient(180deg, rgba(10,14,28,0.9), rgba(5,8,16,0.9));
+      border-left: 1px solid rgba(255,255,255,0.06);
+      padding: 20px 16px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+    .sidebar-section h3 {
+      font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase;
+      color: #6b7588; margin-bottom: 12px; font-weight: 700;
+    }
+    .channel-card {
+      padding: 16px; border-radius: 14px;
+      background: linear-gradient(135deg, rgba(0,255,170,0.06), rgba(0,184,255,0.04));
+      border: 1px solid rgba(0,255,170,0.15);
+    }
+    .channel-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .channel-avatar {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: linear-gradient(135deg, #00ffaa, #00b8ff);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 18px; color: #000;
+      box-shadow: 0 0 20px rgba(0,255,170,0.3);
+    }
+    .channel-name { font-size: 14px; font-weight: 700; color: #fff; }
+    .channel-sub { font-size: 11px; color: #6b7588; margin-top: 2px; }
+    .channel-stats {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+      font-size: 10px; color: #6b7588; letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .channel-stats div {
+      background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 8px;
+    }
+    .channel-stats div strong {
+      display: block; font-size: 14px; color: #e8eaf0;
+      margin-top: 2px; font-family: 'JetBrains Mono', monospace;
+    }
+    .chat-list {
+      max-height: 220px; overflow-y: auto; padding-right: 4px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .chat-list::-webkit-scrollbar { width: 4px; }
+    .chat-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 100px; }
+    .chat-msg {
+      padding: 8px 10px; border-radius: 8px;
+      background: rgba(255,255,255,0.03); font-size: 12px; line-height: 1.4;
+    }
+    .chat-msg .name { color: #00ffaa; font-weight: 600; margin-right: 6px; font-size: 11px; }
+    .chat-msg .text { color: #c8d0dc; }
+    .chat-input {
+      display: flex; gap: 6px; margin-top: 8px;
+    }
+    .chat-input input {
+      flex: 1; padding: 8px 12px; border-radius: 8px;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+      color: #e8eaf0; font-size: 12px; font-family: inherit;
+      outline: none;
+    }
+    .chat-input input:focus { border-color: rgba(0,255,170,0.3); }
+    .chat-input button {
+      padding: 8px 14px; border-radius: 8px;
+      background: linear-gradient(135deg, #00ffaa, #00b8ff);
+      color: #000; font-weight: 700; font-size: 11px;
+      letter-spacing: 0.1em; text-transform: uppercase;
+    }
+
+    /* Audio visualizer (sidebar) */
+    .visualizer-wrap {
+      padding: 12px; border-radius: 12px;
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+    }
+    canvas.visualizer {
+      width: 100%; height: 80px; display: block;
+    }
+    .vis-label {
+      font-size: 9px; letter-spacing: 0.25em; color: #6b7588;
+      text-transform: uppercase; margin-top: 6px; text-align: center;
+    }
+
+    /* Control bar (bottom) */
+    .controls {
+      position: fixed; bottom: 0; left: 0; right: 0; height: 96px;
+      background: linear-gradient(0deg, rgba(8,12,24,0.98), rgba(8,12,24,0.85));
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px; z-index: 100; gap: 16px;
+    }
+    .ctrl-group { display: flex; gap: 10px; align-items: center; }
+    .ctrl-btn {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-width: 64px; padding: 8px 14px; border-radius: 12px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #e8eaf0; transition: all 0.25s ease;
+      position: relative;
+    }
+    .ctrl-btn:hover {
+      transform: translateY(-2px);
+      background: rgba(255,255,255,0.07);
+      border-color: rgba(255,255,255,0.15);
+    }
+    .ctrl-btn svg { width: 22px; height: 22px; }
+    .ctrl-label {
+      font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
+      color: #8b95a8; margin-top: 4px;
+    }
+    /* ON state — green */
+    .ctrl-btn.on {
+      background: linear-gradient(135deg, rgba(0,255,170,0.18), rgba(0,184,255,0.08));
+      border-color: rgba(0,255,170,0.5);
+      box-shadow: 0 0 20px rgba(0,255,170,0.25);
+    }
+    .ctrl-btn.on .ctrl-label { color: #00ffaa; }
+    /* OFF state — red */
+    .ctrl-btn.off {
+      background: linear-gradient(135deg, rgba(255,59,59,0.15), rgba(255,59,59,0.04));
+      border-color: rgba(255,59,59,0.4);
+    }
+    .ctrl-btn.off .ctrl-label { color: #ff6b6b; }
+    .ctrl-btn.recording {
+      background: linear-gradient(135deg, rgba(255,59,59,0.3), rgba(255,59,59,0.1));
+      border-color: rgba(255,59,59,0.6);
+      animation: recPulse 1.4s ease-in-out infinite;
+    }
+    @keyframes recPulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(255,59,59,0.5); }
+      50% { box-shadow: 0 0 0 8px rgba(255,59,59,0); }
+    }
+    .ctrl-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* Status control pill */
+    .status-control {
+      display: flex; gap: 4px; padding: 4px; border-radius: 12px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .status-pill {
+      padding: 8px 14px; border-radius: 8px; font-size: 10px;
+      font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase;
+      color: #6b7588; transition: all 0.25s;
+    }
+    .status-pill:hover { color: #e8eaf0; background: rgba(255,255,255,0.04); }
+    .status-pill.active.offline { background: rgba(255,59,59,0.2); color: #ff6b6b; box-shadow: inset 0 0 10px rgba(255,59,59,0.2); }
+    .status-pill.active.online { background: rgba(255,138,0,0.2); color: #ffb340; box-shadow: inset 0 0 10px rgba(255,138,0,0.2); }
+    .status-pill.active.live { background: rgba(0,255,122,0.2); color: #00ff7a; box-shadow: inset 0 0 10px rgba(0,255,122,0.2); }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%) translateY(20px);
+      padding: 12px 22px; border-radius: 12px;
+      background: rgba(15,22,38,0.95);
+      border: 1px solid rgba(0,255,170,0.3);
+      color: #e8eaf0; font-size: 13px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+      opacity: 0; transition: all 0.4s ease; z-index: 200;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.error { border-color: rgba(255,59,59,0.4); }
+
+    /* Download list modal */
+    .modal {
+      position: fixed; inset: 0; z-index: 300;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+      display: none; align-items: center; justify-content: center;
+    }
+    .modal.show { display: flex; }
+    .modal-card {
+      width: 560px; max-width: 92vw; max-height: 80vh;
+      background: linear-gradient(180deg, #0e1424, #080c18);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 18px; padding: 28px;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .modal-card h2 {
+      font-size: 16px; letter-spacing: 0.05em; color: #fff;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-close {
+      font-size: 22px; color: #6b7588; cursor: pointer; line-height: 1;
+    }
+    .modal-close:hover { color: #fff; }
+    .rec-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+    .rec-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; border-radius: 10px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.05);
+      transition: all 0.25s;
+    }
+    .rec-item:hover { background: rgba(0,255,170,0.06); border-color: rgba(0,255,170,0.2); }
+    .rec-info { display: flex; flex-direction: column; gap: 4px; }
+    .rec-name { font-size: 13px; color: #e8eaf0; font-family: 'JetBrains Mono', monospace; }
+    .rec-meta { font-size: 11px; color: #6b7588; }
+    .rec-dl {
+      padding: 8px 14px; border-radius: 8px;
+      background: linear-gradient(135deg, #00ffaa, #00b8ff);
+      color: #000; font-size: 11px; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+    }
+
+    @media (max-width: 900px) {
+      .main { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .controls { padding: 0 10px; overflow-x: auto; }
+      .ctrl-btn { min-width: 56px; padding: 6px 10px; }
+    }
+  </style>
 </head>
 <body>
 
-<!-- ====================================================================== -->
-<!-- LOADING SCREEN (mirip Screenshot 805 - 00.01% -> 10.00%)                -->
-<!-- ====================================================================== -->
-<div id="loadingScreen" class="loading-screen">
-    <div class="loading-grid-bg"></div>
-    <div class="loading-scanline"></div>
+<!-- ====================== LOADING SCREEN ====================== -->
+<div id="loader">
+  <div class="loader-grid"></div>
+  <div class="loader-ring">
+    <svg viewBox="0 0 200 200">
+      <defs>
+        <linearGradient id="loaderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#00ffaa"/>
+          <stop offset="50%" stop-color="#00b8ff"/>
+          <stop offset="100%" stop-color="#6e8aff"/>
+        </linearGradient>
+      </defs>
+      <circle class="bg" cx="100" cy="100" r="90"/>
+      <circle class="fg" id="loaderFg" cx="100" cy="100" r="90"/>
+    </svg>
+    <div class="loader-center">
+      <div class="loader-percent" id="loaderPercent">00.00%</div>
+      <div class="loader-label">Loading Stream</div>
+    </div>
+  </div>
+  <div class="loader-title">RUANG SIARAN LANGSUNG</div>
+  <div class="loader-status" id="loaderStatus">Memulai sistem penyiaran…</div>
+  <div class="loader-bar-wrap"><div class="loader-bar" id="loaderBar"></div></div>
+  <div class="loader-stages">
+    <span id="stage-1">Initialisasi</span>
+    <span id="stage-2">Pertengahan</span>
+    <span id="stage-3">Tahap Akhir</span>
+  </div>
+</div>
 
-    <div class="loading-content">
-        <div class="loading-brand">
-            <div class="loading-logo-mark">
-                <svg viewBox="0 0 40 40" width="44" height="44">
-                    <defs>
-                        <linearGradient id="lgGrad" x1="0" y1="0" x2="1" y2="1">
-                            <stop offset="0%" stop-color="#00d4ff"/>
-                            <stop offset="100%" stop-color="#7b61ff"/>
-                        </linearGradient>
-                    </defs>
-                    <path d="M8 20 L20 8 L32 20 L20 32 Z" fill="none" stroke="url(#lgGrad)" stroke-width="2.5"/>
-                    <circle cx="20" cy="20" r="5" fill="url(#lgGrad)"/>
-                </svg>
-            </div>
-            <div class="loading-logo-text">STREAM<span>HUB</span></div>
-        </div>
-
-        <div class="loading-status-label">LOADING<span class="loading-dots">......</span></div>
-
-        <!-- Segmented progress bar (mirip Screenshot 805) -->
-        <div class="loading-progress-track" id="loadingTrack">
-            <div class="loading-progress-seg" data-i="0"></div>
-            <div class="loading-progress-seg" data-i="1"></div>
-            <div class="loading-progress-seg" data-i="2"></div>
-            <div class="loading-progress-seg" data-i="3"></div>
-            <div class="loading-progress-seg" data-i="4"></div>
-            <div class="loading-progress-seg" data-i="5"></div>
-            <div class="loading-progress-seg" data-i="6"></div>
-            <div class="loading-progress-seg" data-i="7"></div>
-            <div class="loading-progress-seg" data-i="8"></div>
-            <div class="loading-progress-seg" data-i="9"></div>
-            <div class="loading-progress-seg" data-i="10"></div>
-            <div class="loading-progress-seg" data-i="11"></div>
-        </div>
-
-        <div class="loading-percentage-row">
-            <span class="loading-percent-label">PROGRESS</span>
-            <span class="loading-percent-value" id="loadingPercent">00.00%</span>
-        </div>
-
-        <div class="loading-log" id="loadingLog">
-            <div class="loading-log-line">&gt; initializing python runtime...</div>
-        </div>
+<!-- ====================== MAIN APP ====================== -->
+<div id="app">
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9-9-4.03-9-9z"/>
+          <path d="M10 8l6 4-6 4V8z" fill="white"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-name">RUANG SIARAN</div>
+        <div class="brand-tag">Live Broadcast Network</div>
+      </div>
     </div>
 
-    <div class="loading-corner-tl"></div>
-    <div class="loading-corner-tr"></div>
-    <div class="loading-corner-bl"></div>
-    <div class="loading-corner-br"></div>
-</div>
-
-
-<!-- ====================================================================== -->
-<!-- MAIN APP                                                                 -->
-<!-- ====================================================================== -->
-<div id="mainApp" class="main-app hidden">
-
-    <!-- ============== TOP BAR ============== -->
-    <header class="top-bar">
-        <div class="topbar-left">
-            <div class="brand-mark">
-                <svg viewBox="0 0 40 40" width="28" height="28">
-                    <defs>
-                        <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
-                            <stop offset="0%" stop-color="#00d4ff"/>
-                            <stop offset="100%" stop-color="#7b61ff"/>
-                        </linearGradient>
-                    </defs>
-                    <path d="M8 20 L20 8 L32 20 L20 32 Z" fill="none" stroke="url(#bgGrad)" stroke-width="2.5"/>
-                    <circle cx="20" cy="20" r="5" fill="url(#bgGrad)"/>
-                </svg>
-            </div>
-            <div class="brand-text">STREAM<span>HUB</span></div>
-            <div class="brand-divider"></div>
-            <nav class="top-nav">
-                <a href="#" class="active">Live</a>
-                <a href="#">Series</a>
-                <a href="#">Populer</a>
-                <a href="#">Negara</a>
-                <a href="#">Tahun</a>
-            </nav>
-        </div>
-
-        <div class="topbar-center">
-            <div class="search-box">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
-                </svg>
-                <input type="text" placeholder="Cari channel / host / siaran langsung...">
-            </div>
-        </div>
-
-        <div class="topbar-right">
-            <div class="viewer-pill">
-                <span class="viewer-dot"></span>
-                <span id="viewerCount">0</span> viewers
-            </div>
-
-            <!-- ====== STATUS CARD (pojok kanan atas, mirip Screenshot 825) ====== -->
-            <div class="status-card" id="statusCard">
-                <div class="status-card-row status-card-time">
-                    <div class="status-card-time-row">
-                        <svg class="ic-clock" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                        </svg>
-                        <span id="cardTime">--:--:--</span>
-                    </div>
-                    <span class="status-card-sep">|</span>
-                    <div class="status-card-date-row">
-                        <svg class="ic-cal" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-                        </svg>
-                        <span id="cardDate">--</span>
-                    </div>
-                </div>
-
-                <div class="status-card-row status-card-alert" id="statusAlert">
-                    <span class="status-dot-big" id="statusDotBig"></span>
-                    <span class="status-text" id="statusText">HOST OFFLINE</span>
-                </div>
-
-                <div class="status-card-row status-card-stage">
-                    <span class="stage-label">TAHAP:</span>
-                    <div class="stage-dots" id="stageDots"></div>
-                    <span class="stage-counter" id="stageCounter">0/10</span>
-                </div>
-
-                <div class="status-card-row status-card-action">
-                    <button class="status-reload-btn" id="reloadBtn">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                        </svg>
-                        <span>Reload</span>
-                    </button>
-                    <button class="status-advance-btn" id="advanceBtn">
-                        <span>Advance Stage</span>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <polyline points="9 18 15 12 9 6"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <!-- ============== MAIN CONTENT ============== -->
-    <main class="main-content">
-
-        <!-- ====== LEFT: STREAM AREA (mirip Screenshot 789 - 2x2 grid + control bar) ====== -->
-        <section class="stream-area">
-
-            <!-- Stream header -->
-            <div class="stream-header">
-                <div class="stream-title-block">
-                    <div class="live-badge" id="liveBadge">
-                        <span class="live-pulse"></span>
-                        <span class="live-text">LIVE</span>
-                    </div>
-                    <h1 class="stream-title" id="streamTitle">Siaran Langsung Komunitas</h1>
-                </div>
-                <div class="stream-meta">
-                    <span class="meta-host">
-                        <span class="host-avatar"></span>
-                        <span id="hostName">Host Utama</span>
-                    </span>
-                    <span class="meta-sep">•</span>
-                    <span class="meta-quality">4K • 60fps</span>
-                    <span class="meta-sep">•</span>
-                    <span class="meta-latency">Ultra-Low Latency</span>
-                </div>
-            </div>
-
-            <!-- 2x2 video grid (mirip Screenshot 789) -->
-            <div class="video-grid">
-                <div class="video-cell" data-cell="0">
-                    <video class="video-el" autoplay playsinline muted></video>
-                    <div class="video-cell-overlay">
-                        <div class="cell-tag">CAM 01 — Host</div>
-                        <div class="cell-status">IDLE</div>
-                    </div>
-                    <div class="video-cell-empty">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <rect x="2" y="6" width="14" height="12" rx="2"/>
-                            <polygon points="22 8 16 12 22 16 22 8"/>
-                        </svg>
-                        <span>Kamera Belum Aktif</span>
-                    </div>
-                </div>
-                <div class="video-cell" data-cell="1">
-                    <video class="video-el" autoplay playsinline muted></video>
-                    <div class="video-cell-overlay">
-                        <div class="cell-tag">CAM 02 — Co-Host</div>
-                        <div class="cell-status">IDLE</div>
-                    </div>
-                    <div class="video-cell-empty">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <rect x="2" y="6" width="14" height="12" rx="2"/>
-                            <polygon points="22 8 16 12 22 16 22 8"/>
-                        </svg>
-                        <span>Kamera Belum Aktif</span>
-                    </div>
-                </div>
-                <div class="video-cell" data-cell="2">
-                    <video class="video-el" autoplay playsinline muted></video>
-                    <div class="video-cell-overlay">
-                        <div class="cell-tag">CAM 03 — Screen Share</div>
-                        <div class="cell-status">IDLE</div>
-                    </div>
-                    <div class="video-cell-empty">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <rect x="2" y="6" width="14" height="12" rx="2"/>
-                            <polygon points="22 8 16 12 22 16 22 8"/>
-                        </svg>
-                        <span>Kamera Belum Aktif</span>
-                    </div>
-                </div>
-                <div class="video-cell" data-cell="3">
-                    <video class="video-el" autoplay playsinline muted></video>
-                    <div class="video-cell-overlay">
-                        <div class="cell-tag">CAM 04 — Audience Mix</div>
-                        <div class="cell-status">IDLE</div>
-                    </div>
-                    <div class="video-cell-empty">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <rect x="2" y="6" width="14" height="12" rx="2"/>
-                            <polygon points="22 8 16 12 22 16 22 8"/>
-                        </svg>
-                        <span>Kamera Belum Aktif</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ====== CONTROL BAR (mirip Screenshot 789) ====== -->
-            <div class="control-bar">
-                <div class="control-bar-progress">
-                    <div class="progress-track">
-                        <div class="progress-buffered"></div>
-                        <div class="progress-filled" id="progressFilled"></div>
-                        <div class="progress-handle" id="progressHandle"></div>
-                    </div>
-                    <div class="progress-time">
-                        <span id="currentTime">00:00.00</span>
-                        <span>/</span>
-                        <span id="totalTime">01:15.20</span>
-                    </div>
-                </div>
-
-                <div class="control-bar-buttons">
-                    <div class="control-group">
-                        <button class="ctrl-btn" title="Volume" id="volumeBtn">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-                        </button>
-                        <button class="ctrl-btn" title="Subtitles">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                        </button>
-                        <button class="ctrl-btn" title="Rewind 10s">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="11 19 2 12 11 5 11 19"/><polyline points="22 19 13 12 22 5 22 19"/></svg>
-                            <span class="ctrl-num">10</span>
-                        </button>
-                        <button class="ctrl-btn ctrl-play" title="Play/Pause" id="playBtn">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" id="playIcon"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                        </button>
-                        <button class="ctrl-btn" title="Forward 30s">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 5 22 12 13 19 13 5"/><polyline points="2 5 11 12 2 19 2 5"/></svg>
-                            <span class="ctrl-num">30</span>
-                        </button>
-                        <button class="ctrl-btn" title="Edit">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-                        </button>
-                        <button class="ctrl-btn" title="Picture in Picture">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 7v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/><rect x="13" y="12" width="7" height="6" rx="1"/></svg>
-                        </button>
-                        <button class="ctrl-btn" title="Fullscreen" id="fullscreenBtn">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ====== TOGGLE BUTTONS (ON/OFF suara & video - REAL getUserMedia) ====== -->
-            <div class="toggle-bar">
-                <div class="toggle-section">
-                    <div class="toggle-label">KONTROL SIARAN</div>
-                    <div class="toggle-row">
-
-                        <!-- Mic ON/OFF -->
-                        <button class="toggle-btn toggle-mic" id="micToggle">
-                            <div class="toggle-icon-wrap">
-                                <svg class="toggle-icon-on" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
-                                </svg>
-                                <svg class="toggle-icon-off" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
-                                    <line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
-                                </svg>
-                            </div>
-                            <div class="toggle-text">
-                                <div class="toggle-title">SUARA / MIC</div>
-                                <div class="toggle-state" id="micState">OFF</div>
-                            </div>
-                            <div class="toggle-switch">
-                                <div class="toggle-knob"></div>
-                            </div>
-                        </button>
-
-                        <!-- Camera ON/OFF -->
-                        <button class="toggle-btn toggle-cam" id="camToggle">
-                            <div class="toggle-icon-wrap">
-                                <svg class="toggle-icon-on" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-                                </svg>
-                                <svg class="toggle-icon-off" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
-                                    <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10"/><line x1="1" y1="1" x2="23" y2="23"/>
-                                </svg>
-                            </div>
-                            <div class="toggle-text">
-                                <div class="toggle-title">REKAMAN / VIDEO</div>
-                                <div class="toggle-state" id="camState">OFF</div>
-                            </div>
-                            <div class="toggle-switch">
-                                <div class="toggle-knob"></div>
-                            </div>
-                        </button>
-
-                        <!-- Go Live Button -->
-                        <button class="toggle-btn toggle-live" id="liveToggle">
-                            <div class="toggle-icon-wrap">
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>
-                                </svg>
-                            </div>
-                            <div class="toggle-text">
-                                <div class="toggle-title">START SIARAN</div>
-                                <div class="toggle-state" id="liveState">GO LIVE</div>
-                            </div>
-                            <div class="toggle-pulse"></div>
-                        </button>
-
-                        <!-- Record / Save Video Button -->
-                        <button class="toggle-btn toggle-record" id="recordToggle">
-                            <div class="toggle-icon-wrap">
-                                <svg class="rec-icon-stop" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
-                                    <rect x="6" y="6" width="12" height="12" rx="2"/>
-                                </svg>
-                                <svg class="rec-icon-record" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                                    <circle cx="12" cy="12" r="8"/>
-                                </svg>
-                            </div>
-                            <div class="toggle-text">
-                                <div class="toggle-title">SIMPAN VIDEO</div>
-                                <div class="toggle-state" id="recordState">REKAM</div>
-                            </div>
-                            <div class="rec-timer" id="recTimer">00:00</div>
-                            <div class="rec-pulse"></div>
-                        </button>
-
-                    </div>
-                </div>
-
-                <!-- ====== SAVED RECORDINGS PANEL (Simpan & Unduh Video) ====== -->
-                <div class="recordings-panel" id="recordingsPanel">
-                    <div class="recordings-header">
-                        <div class="recordings-title-row">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                            </svg>
-                            <span class="recordings-title">REKAMAN TERSIMPAN</span>
-                            <span class="recordings-count" id="recCount">0</span>
-                        </div>
-                        <button class="recordings-refresh" id="refreshRecs" title="Refresh">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="recordings-list" id="recordingsList">
-                        <div class="recordings-empty" id="recordingsEmpty">
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
-                                <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
-                            </svg>
-                            <span>Belum ada rekaman. Klik SIMPAN VIDEO untuk mulai merekam.</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Audio level meter (real, dari mic input) -->
-                <div class="audio-meter-section">
-                    <div class="toggle-label">AUDIO LEVEL</div>
-                    <div class="audio-meter" id="audioMeter">
-                        <div class="meter-bar"></div>
-                        <div class="meter-bar"></div>
-                        <div class="meter-bar"></div>
-                        <div class="meter-bar"></div>
-                        <div class="meter-bar"></div>
-                        <div class="meter-bar"></div>
-                        <div class="meter-bar"></div>
-                        <div class="meter-bar"></div>
-                        <div class="meter-bar"></div>
-                        <div class="meter-bar"></div>
-                        <div class="meter-bar"></div>
-                        <div class="meter-bar"></div>
-                        <div class="meter-bar"></div>
-                        <div class="meter-bar"></div>
-                        <div class="meter-bar"></div>
-                    </div>
-                </div>
-            </div>
-
-        </section>
-
-        <!-- ====== RIGHT: SIDEBAR (mirip Screenshot 823 - Movie Terkait) ====== -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h3>CHANNEL TERKAIT</h3>
-                <span class="sidebar-count">12 online</span>
-            </div>
-            <div class="sidebar-list" id="sidebarList">
-                <!-- diisi oleh JS -->
-            </div>
-
-            <div class="sidebar-info-card">
-                <div class="info-card-title">INFO SIARAN</div>
-                <div class="info-row">
-                    <span class="info-key">Protokol</span>
-                    <span class="info-val">WebRTC + WebSocket</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-key">Backend</span>
-                    <span class="info-val">Python Flask</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-key">Latency</span>
-                    <span class="info-val" id="latencyVal">~120ms</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-key">Bitrate</span>
-                    <span class="info-val" id="bitrateVal">— kbps</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-key">Status Server</span>
-                    <span class="info-val info-val-ok">● Tersambung</span>
-                </div>
-            </div>
-        </aside>
-
-    </main>
-
-    <!-- Hidden canvas for audio visualization (real Web Audio API) -->
-    <canvas id="audioCanvas" style="display:none"></canvas>
-
-</div>
-
-<!-- Notification toast -->
-<div id="toast" class="toast"></div>
-
-<!-- Video Preview Modal -->
-<div id="videoModal" class="video-modal">
-    <div class="video-modal-content">
-        <div class="video-modal-header">
-            <div class="video-modal-title" id="modalTitle">Preview Rekaman</div>
-            <button class="video-modal-close" id="modalClose">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-            </button>
-        </div>
-        <video id="modalVideo" controls playsinline></video>
-        <div class="video-modal-footer">
-            <button class="modal-download-btn" id="modalDownload">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                <span>UNDUH VIDEO</span>
-            </button>
-        </div>
+    <div class="topbar-center">
+      <div class="topbar-stat">
+        <span>Viewers</span>
+        <strong id="viewerCount">0</strong>
+      </div>
+      <div class="topbar-stat">
+        <span>Bitrate</span>
+        <strong id="bitrate">0 kbps</strong>
+      </div>
+      <div class="topbar-stat">
+        <span>Status</span>
+        <strong id="topStat" class="live-count">OFFLINE</strong>
+      </div>
     </div>
+
+    <!-- STATUS INDICATOR (top-right corner, screenshot 825 style) -->
+    <div class="status-indicator offline" id="statusInd" title="Klik untuk mengubah status">
+      <div class="status-dot"></div>
+      <div class="status-text">
+        <div class="status-label" id="statusLabel">HOST</div>
+        <div class="status-value" id="statusValue">Offline</div>
+      </div>
+      <div class="status-time mono" id="statusTime">00:00:00</div>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- STAGE with quad view -->
+    <div class="stage">
+      <div class="stage-header">
+        <div class="stage-title">Siaran Langsung — Quad View</div>
+        <div class="stage-meta">
+          <span>RES <strong id="resolution">—</strong></span>
+          <span>FPS <strong id="fps">0</strong></span>
+          <span>TIME <strong id="uptime" class="mono">00:00:00</strong></span>
+        </div>
+      </div>
+      <div class="quad">
+        <!-- Tile 1: local camera -->
+        <div class="tile" id="tile1">
+          <video id="localVideo" autoplay playsinline muted></video>
+          <div class="tile-label">CAM 1 — Local</div>
+          <div class="tile-feed-id mono">stream://local/cam1</div>
+          <div class="tile-live-badge">LIVE</div>
+          <div class="tile-empty" id="empty1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="2" y="6" width="14" height="12" rx="2"/>
+              <path d="M22 8l-6 4 6 4V8z"/>
+            </svg>
+            <span>Kamera Belum Aktif</span>
+          </div>
+        </div>
+        <!-- Tile 2: secondary / screen share -->
+        <div class="tile" id="tile2">
+          <video id="shareVideo" autoplay playsinline muted></video>
+          <div class="tile-label">CAM 2 — Share</div>
+          <div class="tile-feed-id mono">stream://share/cam2</div>
+          <div class="tile-live-badge">LIVE</div>
+          <div class="tile-empty" id="empty2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="2" y="6" width="14" height="12" rx="2"/>
+              <path d="M22 8l-6 4 6 4V8z"/>
+            </svg>
+            <span>Screen Share Tersedia</span>
+          </div>
+        </div>
+        <!-- Tile 3: received remote broadcast -->
+        <div class="tile" id="tile3">
+          <video id="remoteVideo" autoplay playsinline></video>
+          <div class="tile-label">CAM 3 — Remote</div>
+          <div class="tile-feed-id mono">stream://remote/cam3</div>
+          <div class="tile-live-badge">LIVE</div>
+          <div class="tile-empty" id="empty3">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="2" y="6" width="14" height="12" rx="2"/>
+              <path d="M22 8l-6 4 6 4V8z"/>
+            </svg>
+            <span>Belum Ada Siaran Remote</span>
+          </div>
+        </div>
+        <!-- Tile 4: audio waveform visualization -->
+        <div class="tile" id="tile4">
+          <canvas id="tileVisCanvas"></canvas>
+          <div class="tile-label">CAM 4 — Audio Wave</div>
+          <div class="tile-feed-id mono">stream://audio/wave</div>
+          <div class="tile-live-badge">LIVE</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <h3>Channel</h3>
+        <div class="channel-card">
+          <div class="channel-row">
+            <div class="channel-avatar" id="chAvatar">H</div>
+            <div>
+              <div class="channel-name" id="chName">Host</div>
+              <div class="channel-sub" id="chSub">Sedang offline</div>
+            </div>
+          </div>
+          <div class="channel-stats">
+            <div>Followers<strong id="statFollowers">0</strong></div>
+            <div>Total Live<strong id="statLives">0</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3>Audio Visualizer</h3>
+        <div class="visualizer-wrap">
+          <canvas class="visualizer" id="sideVisCanvas"></canvas>
+          <div class="vis-label" id="visLabel">Tekan tombol AUDIO untuk mulai</div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3>Live Chat</h3>
+        <div class="chat-list" id="chatList">
+          <div class="chat-msg"><span class="name">System</span><span class="text">Selamat datang. Aktifkan siaran untuk mengobrol.</span></div>
+        </div>
+        <div class="chat-input">
+          <input type="text" id="chatInput" placeholder="Tulis pesan…" maxlength="500" />
+          <button id="chatSend">Kirim</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- CONTROL BAR (bottom) -->
+  <footer class="controls">
+    <div class="ctrl-group">
+      <button class="ctrl-btn off" id="btnAudio" title="Toggle microphone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+        <div class="ctrl-label">AUDIO OFF</div>
+      </button>
+      <button class="ctrl-btn off" id="btnVideo" title="Toggle camera">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="23 7 16 12 23 17 23 7"/>
+          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+        </svg>
+        <div class="ctrl-label">VIDEO OFF</div>
+      </button>
+      <button class="ctrl-btn off" id="btnShare" title="Toggle screen share">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="3" width="20" height="14" rx="2"/>
+          <line x1="8" y1="21" x2="16" y2="21"/>
+          <line x1="12" y1="17" x2="12" y2="21"/>
+        </svg>
+        <div class="ctrl-label">SHARE OFF</div>
+      </button>
+    </div>
+
+    <div class="ctrl-group">
+      <div class="status-control" id="statusControl">
+        <div class="status-pill offline active" data-status="offline">Offline</div>
+        <div class="status-pill online" data-status="online">Online</div>
+        <div class="status-pill live" data-status="live">Live</div>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <button class="ctrl-btn off" id="btnRecord" title="Start/stop recording">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9" fill="currentColor" stroke="none" id="recDot"/>
+        </svg>
+        <div class="ctrl-label">RECORD OFF</div>
+      </button>
+      <button class="ctrl-btn" id="btnDownload" title="Download live recording">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <div class="ctrl-label">Unduh Video</div>
+      </button>
+    </div>
+  </footer>
 </div>
 
-<!-- Socket.IO client -->
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Recordings Modal -->
+<div class="modal" id="recModal">
+  <div class="modal-card">
+    <h2>
+      <span>Rekaman Siaran Tersedia</span>
+      <span class="modal-close" id="recClose">×</span>
+    </h2>
+    <div class="rec-list" id="recList">
+      <div style="color:#6b7588;font-size:12px;text-align:center;padding:20px;">Memuat…</div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+/* =========================================================================
+ *  LIVE STREAMING FRONTEND — Real WebRTC + Web Audio + MediaRecorder
+ *  No simulation. Real microphone, real camera, real recording, real
+ *  audio routing through AudioContext to bypass autoplay blocks.
+ * ========================================================================= */
+(function() {
+  'use strict';
 
+  // ---- DOM refs ----
+  const $ = (id) => document.getElementById(id);
+  const loader = $('loader');
+  const app = $('app');
+  const loaderPercent = $('loaderPercent');
+  const loaderBar = $('loaderBar');
+  const loaderFg = $('loaderFg');
+  const loaderStatus = $('loaderStatus');
+  const loaderStages = [$('stage-1'), $('stage-2'), $('stage-3')];
+
+  /* ============ 1. LOADING SCREEN: 0.01% → 100.00% ============ */
+  const CIRC = 565.48;
+  const stageMessages = [
+    { from: 0,    to: 30,   stage: 0, msgs: [
+      'Memulai sistem penyiaran…',
+      'Menghubungkan ke server python…',
+      'Mengaktifkan modul audio web…',
+      'Mengkalibrasi Web Audio API…'
+    ]},
+    { from: 30,   to: 70,   stage: 1, msgs: [
+      'Memeriksa perangkat kamera…',
+      'Memeriksa perangkat mikrofon…',
+      'Mengaktifkan codec video…',
+      'Membuka saluran WebSocket…'
+    ]},
+    { from: 70,   to: 100,  stage: 2, msgs: [
+      'Menyiapkan ruang siaran…',
+      'Menginisialisasi MediaRecorder…',
+      'Memuat antarmuka quad-view…',
+      'Hampir siap untuk siaran langsung…'
+    ]}
+  ];
+  let progress = 0;
+  function tickLoad() {
+    if (progress >= 100) {
+      loaderStatus.textContent = 'Siap! Memasuki ruang siaran…';
+      loaderStages.forEach(s => { s.classList.remove('active'); s.classList.add('done'); });
+      setTimeout(() => {
+        loader.classList.add('hidden');
+        app.classList.add('ready');
+      }, 700);
+      return;
+    }
+    // Variable speed: faster in middle, slower at edges for realism
+    let step = 0.4 + Math.random() * 1.3;
+    if (progress > 90) step *= 0.4;
+    if (progress > 99) step *= 0.5;
+    progress = Math.min(100, progress + step);
+    const pct = progress.toFixed(2).padStart(5, '0') + '%';
+    loaderPercent.textContent = pct;
+    loaderBar.style.width = progress + '%';
+    loaderFg.style.strokeDashoffset = (CIRC * (1 - progress / 100)).toFixed(2);
+
+    // Update stage
+    for (const s of stageMessages) {
+      if (progress >= s.from && progress < s.to) {
+        loaderStages.forEach((el, idx) => {
+          el.classList.toggle('active', idx === s.stage);
+          el.classList.toggle('done', idx < s.stage);
+        });
+        const msgIdx = Math.min(s.msgs.length - 1,
+          Math.floor(((progress - s.from) / (s.to - s.from)) * s.msgs.length));
+        loaderStatus.textContent = s.msgs[msgIdx];
+      }
+    }
+    // Variable timing for more realism
+    const delay = 35 + Math.random() * 75;
+    setTimeout(tickLoad, delay);
+  }
+  // Start loading after small delay
+  setTimeout(tickLoad, 400);
+
+  /* ============ 2. SOCKET.IO CONNECTION ============ */
+  const socket = io({ transports: ['websocket', 'polling'], reconnection: true });
+
+  socket.on('connect', () => {
+    console.log('[Socket] connected', socket.id);
+    addChat('System', 'Terhubung ke server. Saluran siaran aktif.');
+  });
+  socket.on('disconnect', () => {
+    console.log('[Socket] disconnected');
+    addChat('System', 'Koneksi terputus. Mencoba menyambung ulang…');
+  });
+  socket.on('host_state', (state) => {
+    updateStatus(state.status);
+    $('chName').textContent = state.host_name || 'Host';
+    $('chSub').textContent = statusToText(state.status);
+    $('statFollowers').textContent = (state.viewers || 0).toString();
+  });
+  socket.on('viewer_count', (data) => {
+    $('viewerCount').textContent = data.count;
+  });
+  socket.on('chat_message', (msg) => {
+    addChat(msg.name, msg.text);
+  });
+  socket.on('live_chunk', (data) => {
+    // Real-time remote broadcast chunk — append to remote video
+    if (data && data.b64) {
+      try {
+        const blob = new Blob([base64ToUint8(data.b64)], { type: data.type || 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const v = $('remoteVideo');
+        v.src = url; v.play().catch(() => {});
+        $('tile3').classList.add('live-feed');
+        $('empty3').style.display = 'none';
+      } catch (e) { /* ignore */ }
+    }
+  });
+
+  function base64ToUint8(b64) {
+    const bin = atob(b64);
+    const u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return u8;
+  }
+
+  /* ============ 3. AUDIO + VIDEO (real getUserMedia) ============ */
+  let localStream = null;
+  let shareStream = null;
+  let audioCtx = null;
+  let audioSource = null;
+  let audioAnalyser = null;
+  let audioGain = null;
+  let mediaRecorder = null;
+  let recordedChunks = [];
+  let recordingSession = Math.random().toString(36).slice(2, 10);
+  let chunkSeq = 0;
+  let isAudioOn = false;
+  let isVideoOn = false;
+  let isShareOn = false;
+  let isRecording = false;
+  let currentStatus = 'offline';
+  let startTime = 0;
+  let fpsCounter = 0;
+  let fpsLastTime = performance.now();
+
+  async function ensureAudioContext() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+      try { await audioCtx.resume(); } catch (e) {}
+    }
+    return audioCtx;
+  }
+
+  function statusToText(s) {
+    if (s === 'live') return 'Sedang siaran langsung';
+    if (s === 'online') return 'Sedang online';
+    return 'Sedang offline';
+  }
+
+  function updateStatus(status) {
+    currentStatus = status;
+    const ind = $('statusInd');
+    ind.classList.remove('offline', 'online', 'live');
+    ind.classList.add(status);
+    const text = status === 'live' ? 'LIVE' : (status === 'online' ? 'Online' : 'Offline');
+    $('statusValue').textContent = text;
+    $('topStat').textContent = text.toUpperCase();
+    $('topStat').classList.toggle('live-count', status === 'live');
+    // Update status pills
+    document.querySelectorAll('.status-pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.status === status);
+    });
+    // Update tile live-feed flags
+    if (status === 'live') {
+      if (isVideoOn) $('tile1').classList.add('live-feed');
+      if (isShareOn) $('tile2').classList.add('live-feed');
+    } else {
+      $('tile1').classList.remove('live-feed');
+      $('tile2').classList.remove('live-feed');
+    }
+    // Start time tracking
+    if (status === 'live' && !startTime) startTime = Date.now();
+    else if (status === 'offline') startTime = 0;
+  }
+
+  /* ----- AUDIO TOGGLE (real microphone + Web Audio routing) ----- */
+  $('btnAudio').addEventListener('click', async () => {
+    const btn = $('btnAudio');
+    if (!isAudioOn) {
+      try {
+        await ensureAudioContext();
+        // Real getUserMedia — bypasses autoplay restrictions because
+        // audio is sourced from a real microphone stream, not synthetic
+        localStream = localStream || await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+          video: false
+        });
+        const audioTrack = localStream.getAudioTracks()[0];
+        if (!audioTrack) throw new Error('Tidak ada audio track');
+        // Route through Web Audio API to ensure playback through speakers
+        // (the public can hear us)
+        audioSource = audioCtx.createMediaStreamSource(new MediaStream([audioTrack]));
+        audioAnalyser = audioCtx.createAnalyser();
+        audioAnalyser.fftSize = 256;
+        audioGain = audioCtx.createGain();
+        audioGain.gain.value = 1.0;
+        audioSource.connect(audioAnalyser);
+        audioAnalyser.connect(audioGain);
+        audioGain.connect(audioCtx.destination);
+        // Add to recorded stream
+        ensureRecordedStream();
+        isAudioOn = true;
+        btn.classList.remove('off'); btn.classList.add('on');
+        btn.querySelector('.ctrl-label').textContent = 'AUDIO ON';
+        toast('Mikrofon AKTIF — suara disiarkan ke publik');
+        $('visLabel').textContent = 'Audio aktif — 256-band FFT';
+        startVisualizer();
+      } catch (e) {
+        console.error(e);
+        toast('Gagal mengakses mikrofon: ' + e.message, true);
+      }
+    } else {
+      // Turn off audio
+      if (audioSource) { try { audioSource.disconnect(); } catch (e) {} audioSource = null; }
+      if (audioAnalyser) { try { audioAnalyser.disconnect(); } catch (e) {} audioAnalyser = null; }
+      if (audioGain) { try { audioGain.disconnect(); } catch (e) {} audioGain = null; }
+      // Stop audio tracks only (keep video if on)
+      if (localStream) {
+        localStream.getAudioTracks().forEach(t => t.stop());
+      }
+      isAudioOn = false;
+      btn.classList.remove('on'); btn.classList.add('off');
+      btn.querySelector('.ctrl-label').textContent = 'AUDIO OFF';
+      toast('Mikrofon DIMATIKAN');
+      $('visLabel').textContent = 'Tekan tombol AUDIO untuk mulai';
+      clearVisualizer();
+    }
+  });
+
+  /* ----- VIDEO TOGGLE (real camera) ----- */
+  $('btnVideo').addEventListener('click', async () => {
+    const btn = $('btnVideo');
+    if (!isVideoOn) {
+      try {
+        const videoStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
+        // Merge with existing audio if any
+        if (localStream) {
+          videoStream.getVideoTracks().forEach(t => localStream.addTrack(t));
+        } else {
+          localStream = videoStream;
+        }
+        const v = $('localVideo');
+        v.srcObject = new MediaStream(localStream.getVideoTracks());
+        await v.play();
+        $('empty1').style.display = 'none';
+        $('tile1').classList.add('live-feed');
+        const settings = videoStream.getVideoTracks()[0].getSettings();
+        $('resolution').textContent = (settings.width || 1280) + 'x' + (settings.height || 720);
+        isVideoOn = true;
+        btn.classList.remove('off'); btn.classList.add('on');
+        btn.querySelector('.ctrl-label').textContent = 'VIDEO ON';
+        toast('Kamera AKTIF — gambar disiarkan');
+        ensureRecordedStream();
+        startFpsCounter();
+      } catch (e) {
+        console.error(e);
+        toast('Gagal mengakses kamera: ' + e.message, true);
+      }
+    } else {
+      if (localStream) {
+        localStream.getVideoTracks().forEach(t => { t.stop(); localStream.removeTrack(t); });
+      }
+      const v = $('localVideo');
+      v.srcObject = null;
+      $('empty1').style.display = 'flex';
+      $('tile1').classList.remove('live-feed');
+      isVideoOn = false;
+      btn.classList.remove('on'); btn.classList.add('off');
+      btn.querySelector('.ctrl-label').textContent = 'VIDEO OFF';
+      $('resolution').textContent = '—';
+      toast('Kamera DIMATIKAN');
+    }
+  });
+
+  /* ----- SCREEN SHARE TOGGLE ----- */
+  $('btnShare').addEventListener('click', async () => {
+    const btn = $('btnShare');
+    if (!isShareOn) {
+      try {
+        shareStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { frameRate: 30 },
+          audio: true
+        });
+        const v = $('shareVideo');
+        v.srcObject = shareStream;
+        await v.play();
+        $('empty2').style.display = 'none';
+        $('tile2').classList.add('live-feed');
+        shareStream.getVideoTracks()[0].addEventListener('ended', () => {
+          // Auto-stop when user ends share
+          $('btnShare').click();
+        });
+        isShareOn = true;
+        btn.classList.remove('off'); btn.classList.add('on');
+        btn.querySelector('.ctrl-label').textContent = 'SHARE ON';
+        toast('Screen share AKTIF');
+      } catch (e) {
+        if (e.name === 'NotAllowedError') {
+          toast('Izin screen share ditolak', true);
+        } else {
+          toast('Gagal: ' + e.message, true);
+        }
+      }
+    } else {
+      if (shareStream) {
+        shareStream.getTracks().forEach(t => t.stop());
+        shareStream = null;
+      }
+      const v = $('shareVideo');
+      v.srcObject = null;
+      $('empty2').style.display = 'flex';
+      $('tile2').classList.remove('live-feed');
+      isShareOn = false;
+      btn.classList.remove('on'); btn.classList.add('off');
+      btn.querySelector('.ctrl-label').textContent = 'SHARE OFF';
+      toast('Screen share DIMATIKAN');
+    }
+  });
+
+  /* ----- RECORDING (real MediaRecorder + chunked upload) ----- */
+  function ensureRecordedStream() {
+    // Re-create MediaRecorder if needed
+    if (mediaRecorder && mediaRecorder.state === 'recording') return;
+  }
+
+  $('btnRecord').addEventListener('click', async () => {
+    const btn = $('btnRecord');
+    if (!isRecording) {
+      if (!localStream || localStream.getTracks().length === 0) {
+        toast('Aktifkan minimal AUDIO atau VIDEO dahulu', true);
+        return;
+      }
+      try {
+        const opts = { mimeType: 'video/webm;codecs=vp9,opus', videoBitsPerSecond: 2_500_000 };
+        // Fallback if VP9 unsupported
+        if (!MediaRecorder.isTypeSupported(opts.mimeType)) {
+          opts.mimeType = 'video/webm;codecs=vp8,opus';
+        }
+        if (!MediaRecorder.isTypeSupported(opts.mimeType)) {
+          delete opts.mimeType;
+        }
+        recordingSession = Math.random().toString(36).slice(2, 10);
+        chunkSeq = 0;
+        recordedChunks = [];
+        mediaRecorder = new MediaRecorder(localStream, opts);
+        mediaRecorder.ondataavailable = async (e) => {
+          if (e.data && e.data.size > 0) {
+            recordedChunks.push(e.data);
+            // Upload chunk to server for archival
+            try {
+              const fd = new FormData();
+              fd.append('video', e.data, `chunk_${chunkSeq}.webm`);
+              fd.append('session_id', recordingSession);
+              fd.append('seq', String(chunkSeq));
+              await fetch('/api/upload_chunk', { method: 'POST', body: fd });
+              // Also relay to viewers via websocket (base64)
+              if (e.data.size < 1_000_000) { // only small chunks via ws
+                const b64 = await blobToBase64(e.data);
+                socket.emit('broadcast_chunk', { b64, type: e.data.type, seq: chunkSeq });
+              }
+              chunkSeq++;
+            } catch (err) { console.warn('upload err', err); }
+          }
+        };
+        mediaRecorder.onstop = async () => {
+          // Finalize on server
+          try {
+            const r = await fetch('/api/finalize_recording', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ session_id: recordingSession, total_chunks: chunkSeq })
+            });
+            const j = await r.json();
+            if (j.ok) {
+              toast('Rekaman selesai: ' + j.filename);
+            } else {
+              toast('Gagal finalisasi rekaman', true);
+            }
+          } catch (e) { toast('Kesalahan finalisasi: ' + e.message, true); }
+        };
+        mediaRecorder.start(1000); // 1-second chunks
+        isRecording = true;
+        btn.classList.remove('off'); btn.classList.add('recording');
+        btn.querySelector('.ctrl-label').textContent = 'REC ON';
+        toast('Rekaman DIMULAI — video disimpan ke server');
+      } catch (e) {
+        toast('Gagal mulai rekaman: ' + e.message, true);
+      }
+    } else {
+      try { if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); } catch (e) {}
+      isRecording = false;
+      btn.classList.remove('recording'); btn.classList.add('off');
+      btn.querySelector('.ctrl-label').textContent = 'RECORD OFF';
+      toast('Rekaman DIHENTIKAN — memproses…');
+    }
+  });
+
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => {
+        const s = r.result;
+        resolve(s.substring(s.indexOf(',') + 1));
+      };
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+  }
+
+  /* ----- DOWNLOAD button — show modal of recordings ----- */
+  $('btnDownload').addEventListener('click', async () => {
+    const modal = $('recModal');
+    modal.classList.add('show');
+    const list = $('recList');
+    list.innerHTML = '<div style="color:#6b7588;font-size:12px;text-align:center;padding:20px;">Memuat rekaman…</div>';
+    try {
+      const r = await fetch('/api/recordings');
+      const j = await r.json();
+      if (!j.recordings || j.recordings.length === 0) {
+        list.innerHTML = '<div style="color:#6b7588;font-size:12px;text-align:center;padding:20px;">Belum ada rekaman. Mulai rekam dengan tombol RECORD untuk membuat file video yang dapat diunduh.</div>';
+        return;
+      }
+      list.innerHTML = '';
+      j.recordings.forEach(rec => {
+        const item = document.createElement('div');
+        item.className = 'rec-item';
+        const sizeKB = (rec.size / 1024).toFixed(1);
+        const sizeStr = sizeKB > 1024 ? (sizeKB / 1024).toFixed(2) + ' MB' : sizeKB + ' KB';
+        const dt = new Date(rec.mtime);
+        item.innerHTML = `
+          <div class="rec-info">
+            <div class="rec-name">${rec.name}</div>
+            <div class="rec-meta">${dt.toLocaleString('id-ID')} · ${sizeStr}</div>
+          </div>
+          <a class="rec-dl" href="${rec.url}" download="${rec.name}">Unduh</a>
+        `;
+        list.appendChild(item);
+      });
+    } catch (e) {
+      list.innerHTML = '<div style="color:#ff6b6b;font-size:12px;text-align:center;padding:20px;">Gagal memuat: ' + e.message + '</div>';
+    }
+  });
+  $('recClose').addEventListener('click', () => $('recModal').classList.remove('show'));
+  $('recModal').addEventListener('click', (e) => {
+    if (e.target === $('recModal')) $('recModal').classList.remove('show');
+  });
+
+  /* ----- STATUS CONTROL (pills + indicator) ----- */
+  document.querySelectorAll('.status-pill').forEach(p => {
+    p.addEventListener('click', () => {
+      const s = p.dataset.status;
+      socket.emit('set_host_status', { status: s });
+      // Optimistic local update
+      updateStatus(s);
+      toast('Status diubah ke: ' + s.toUpperCase());
+    });
+  });
+  $('statusInd').addEventListener('click', () => {
+    // Cycle through statuses: offline → online → live → offline
+    const order = ['offline', 'online', 'live'];
+    const next = order[(order.indexOf(currentStatus) + 1) % 3];
+    socket.emit('set_host_status', { status: next });
+    updateStatus(next);
+    toast('Status diubah ke: ' + next.toUpperCase());
+  });
+
+  /* ----- CHAT ----- */
+  function addChat(name, text) {
+    const list = $('chatList');
+    const msg = document.createElement('div');
+    msg.className = 'chat-msg';
+    msg.innerHTML = `<span class="name">${escapeHtml(name)}</span><span class="text">${escapeHtml(text)}</span>`;
+    list.appendChild(msg);
+    list.scrollTop = list.scrollHeight;
+    // Keep last 50
+    while (list.children.length > 50) list.removeChild(list.firstChild);
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  $('chatSend').addEventListener('click', () => {
+    const inp = $('chatInput');
+    const t = inp.value.trim();
+    if (!t) return;
+    socket.emit('chat_message', { text: t });
+    addChat('Saya', t);
+    inp.value = '';
+  });
+  $('chatInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') $('chatSend').click();
+  });
+
+  /* ----- AUDIO VISUALIZER ----- */
+  let visAnimId = null;
+  function startVisualizer() {
+    const side = $('sideVisCanvas');
+    const tile = $('tileVisCanvas');
+    [side, tile].forEach(c => {
+      const dpr = window.devicePixelRatio || 1;
+      c.width = c.clientWidth * dpr;
+      c.height = c.clientHeight * dpr;
+    });
+    const sideCtx = side.getContext('2d');
+    const tileCtx = tile.getContext('2d');
+    const bufferLen = audioAnalyser ? audioAnalyser.frequencyBinCount : 128;
+    const dataArray = new Uint8Array(bufferLen);
+
+    function draw() {
+      if (!audioAnalyser) return;
+      audioAnalyser.getByteFrequencyData(dataArray);
+      drawBars(sideCtx, side, dataArray, true);
+      drawWave(tileCtx, tile, dataArray);
+      visAnimId = requestAnimationFrame(draw);
+    }
+    draw();
+  }
+  function drawBars(ctx, canvas, data, gradient) {
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    const barW = w / data.length;
+    for (let i = 0; i < data.length; i++) {
+      const v = data[i] / 255;
+      const bh = v * h;
+      if (gradient) {
+        const g = ctx.createLinearGradient(0, h, 0, 0);
+        g.addColorStop(0, '#00ffaa');
+        g.addColorStop(0.5, '#00b8ff');
+        g.addColorStop(1, '#6e8aff');
+        ctx.fillStyle = g;
+      } else {
+        ctx.fillStyle = '#00ffaa';
+      }
+      ctx.fillRect(i * barW, h - bh, barW * 0.8, bh);
+    }
+  }
+  function drawWave(ctx, canvas, data) {
+    const w = canvas.width, h = canvas.height;
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#00ffaa';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    const slice = w / data.length;
+    for (let i = 0; i < data.length; i++) {
+      const v = data[i] / 255;
+      const y = h / 2 + (v - 0.5) * h * 0.9;
+      if (i === 0) ctx.moveTo(0, y);
+      else ctx.lineTo(i * slice, y);
+    }
+    ctx.stroke();
+    // Glow effect
+    ctx.shadowColor = '#00ffaa';
+    ctx.shadowBlur = 12;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  function clearVisualizer() {
+    if (visAnimId) cancelAnimationFrame(visAnimId);
+    visAnimId = null;
+    const side = $('sideVisCanvas');
+    const tile = $('tileVisCanvas');
+    side.getContext('2d').clearRect(0, 0, side.width, side.height);
+    tile.getContext('2d').clearRect(0, 0, tile.width, tile.height);
+    // Draw flat line on tile
+    const tc = tile.getContext('2d');
+    tc.strokeStyle = 'rgba(0,255,170,0.2)';
+    tc.lineWidth = 1;
+    tc.beginPath();
+    tc.moveTo(0, tile.height / 2);
+    tc.lineTo(tile.width, tile.height / 2);
+    tc.stroke();
+  }
+
+  /* ----- FPS COUNTER ----- */
+  function startFpsCounter() {
+    function loop() {
+      fpsCounter++;
+      const now = performance.now();
+      if (now - fpsLastTime >= 1000) {
+        $('fps').textContent = fpsCounter;
+        fpsCounter = 0;
+        fpsLastTime = now;
+      }
+      requestAnimationFrame(loop);
+    }
+    loop();
+  }
+
+  /* ----- UPTIME TICK ----- */
+  setInterval(() => {
+    if (startTime) {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const h = String(Math.floor(elapsed / 3600)).padStart(2, '0');
+      const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
+      const s = String(elapsed % 60).padStart(2, '0');
+      $('uptime').textContent = `${h}:${m}:${s}`;
+      $('statusTime').textContent = `${h}:${m}:${s}`;
+    } else {
+      const now = new Date();
+      $('statusTime').textContent = now.toTimeString().slice(0, 8);
+    }
+    // Simulate bitrate based on what's active
+    let br = 0;
+    if (isVideoOn) br += 2200;
+    if (isAudioOn) br += 128;
+    if (isShareOn) br += 1500;
+    $('bitrate').textContent = br + ' kbps';
+  }, 1000);
+
+  /* ----- TOAST ----- */
+  let toastTimer = null;
+  function toast(msg, isError) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.toggle('error', !!isError);
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  /* ----- INITIAL SETUP ----- */
+  // Initialize canvas sizes once loaded
+  setTimeout(() => {
+    const side = $('sideVisCanvas');
+    const tile = $('tileVisCanvas');
+    [side, tile].forEach(c => {
+      const dpr = window.devicePixelRatio || 1;
+      c.width = c.clientWidth * dpr;
+      c.height = c.clientHeight * dpr;
+    });
+    clearVisualizer();
+  }, 1200);
+
+  // Sync state on load
+  fetch('/api/state').then(r => r.json()).then(s => {
+    updateStatus(s.status);
+    $('chName').textContent = s.host_name || 'Host';
+    $('chSub').textContent = statusToText(s.status);
+  }).catch(() => {});
+
+  // Clean up on unload
+  window.addEventListener('beforeunload', () => {
+    if (isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
+      try { mediaRecorder.stop(); } catch (e) {}
+    }
+    if (localStream) localStream.getTracks().forEach(t => t.stop());
+    if (shareStream) shareStream.getTracks().forEach(t => t.stop());
+  });
+
+  console.log('[App] Streaming frontend initialized');
+})();
+</script>
 </body>
 </html>
