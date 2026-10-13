@@ -864,50 +864,82 @@
   /* ============ 2. TILE STATE (9 slots) ============ */
   const NUM_TILES = 9;
   const tiles = new Array(NUM_TILES).fill(null).map(() => ({
-    kind: 'empty', stream: null, analyser: null, source: null,
+    kind: 'empty', stream: null, analyser: null, source: null, gainNode: null,
     name: '', micOn: false, pinned: false, peerId: null
   }));
   let pinnedTile = -1;
   let audioCtxMain = null;
 
+  // Diff-based renderGallery — preserves existing video elements to avoid
+  // re-attachment flicker (the cause of audio gaps). Only updates what changed.
+  const tileDomCache = new Array(NUM_TILES).fill(null); // idx -> {el, streamRef}
   function renderGallery() {
     const g = $('gallery');
-    g.innerHTML = '';
     let activeCount = 0;
     tiles.forEach((t, i) => {
       if (t.kind !== 'empty') activeCount++;
-      const el = document.createElement('div');
-      el.className = 'tile' + (t.kind !== 'empty' ? ' live-feed' : '') + (t.pinned ? ' pinned pin-active' : '');
-      el.dataset.idx = String(i);
-      el.id = 'tile-' + i;
-      const v = document.createElement('video');
-      v.autoplay = true; v.playsInline = true; v.muted = true;
-      v.id = 'tile-video-' + i;
-      if (t.kind === 'screen' || t.kind === 'remote') v.classList.add('no-mirror');
-      if (t.stream) { try { v.srcObject = t.stream; } catch (e) {} }
-      const idx = document.createElement('div'); idx.className = 'tile-idx'; idx.textContent = 'SLOT ' + String(i+1).padStart(2,'0');
-      const live = document.createElement('div'); live.className = 'tile-live-badge'; live.textContent = 'LIVE';
-      const pin = document.createElement('div'); pin.className = 'tile-pin';
-      pin.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4.76a2 2 0 0 0 .5 1.32l2.5 2.92H6l2.5-2.92a2 2 0 0 0 .5-1.32z"/></svg>';
-      pin.addEventListener('click', (e) => { e.stopPropagation(); togglePin(i); });
-      const name = document.createElement('div'); name.className = 'tile-name';
-      name.innerHTML = `<span class="mic-icon ${t.micOn ? 'on' : 'off'}">${t.micOn
+      let cache = tileDomCache[i];
+      const expectedClass = 'tile' + (t.kind !== 'empty' ? ' live-feed' : '') + (t.pinned ? ' pinned pin-active' : '');
+      const isLocal = (t.peerId === myPeerId);
+      // If tile DOM doesn't exist yet, create it from scratch
+      if (!cache) {
+        const el = document.createElement('div');
+        el.className = expectedClass;
+        el.dataset.idx = String(i);
+        el.id = 'tile-' + i;
+        const v = document.createElement('video');
+        v.autoplay = true; v.playsInline = true;
+        v.id = 'tile-video-' + i;
+        // KEY FIX: mute only LOCAL tiles (avoid hearing ourselves/echo);
+        // unmute REMOTE tiles so user can hear remote peers.
+        v.muted = isLocal;
+        if (t.kind === 'screen' || t.kind === 'remote') v.classList.add('no-mirror');
+        if (t.stream) { try { v.srcObject = t.stream; } catch (e) {} }
+        const idx = document.createElement('div'); idx.className = 'tile-idx'; idx.textContent = 'SLOT ' + String(i+1).padStart(2,'0');
+        const live = document.createElement('div'); live.className = 'tile-live-badge'; live.textContent = 'LIVE';
+        const pin = document.createElement('div'); pin.className = 'tile-pin';
+        pin.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4.76a2 2 0 0 0 .5 1.32l2.5 2.92H6l2.5-2.92a2 2 0 0 0 .5-1.32z"/></svg>';
+        pin.addEventListener('click', (e) => { e.stopPropagation(); togglePin(i); });
+        const name = document.createElement('div'); name.className = 'tile-name';
+        const sub = document.createElement('div'); sub.className = 'tile-subtitle'; sub.id = 'tile-sub-' + i;
+        const empty = document.createElement('div'); empty.className = 'tile-empty';
+        empty.innerHTML = `
+          <div class="tile-empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="17" y1="11" x2="23" y2="11"/>
+            </svg>
+          </div>
+          <div class="tile-empty-text">Slot Kosong — Tunggu Peer</div>`;
+        el.appendChild(v); el.appendChild(idx); el.appendChild(live); el.appendChild(pin); el.appendChild(name); el.appendChild(sub); el.appendChild(empty);
+        el.addEventListener('click', () => { if (tiles[i].kind !== 'empty') togglePin(i); });
+        g.appendChild(el);
+        cache = tileDomCache[i] = { el, v, idx, live, pin, name, sub, empty, streamRef: null };
+      }
+      // Update only what changed — DO NOT recreate video element
+      const { el, v, name, empty } = cache;
+      if (el.className !== expectedClass) el.className = expectedClass;
+      // Update video srcObject ONLY if stream reference changed
+      if (cache.streamRef !== t.stream) {
+        cache.streamRef = t.stream;
+        if (t.stream) { try { v.srcObject = t.stream; } catch (e) {} }
+        else { try { v.srcObject = null; } catch (e) {} }
+        // Update muted based on local vs remote
+        v.muted = isLocal;
+        // Force play (some browsers stall after srcObject change)
+        v.play().catch(() => {});
+      }
+      // Update no-mirror class
+      const shouldMirror = !(t.kind === 'screen' || t.kind === 'remote');
+      if (shouldMirror) v.classList.remove('no-mirror'); else v.classList.add('no-mirror');
+      // Update name label
+      const micClass = t.micOn ? 'on' : 'off';
+      const nameHTML = `<span class="mic-icon ${micClass}">${t.micOn
         ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>'
         : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/></svg>'
       }</span>${t.name || 'Kosong'}`;
-      const sub = document.createElement('div'); sub.className = 'tile-subtitle'; sub.id = 'tile-sub-' + i;
-      const empty = document.createElement('div'); empty.className = 'tile-empty';
-      empty.innerHTML = `
-        <div class="tile-empty-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="17" y1="11" x2="23" y2="11"/>
-          </svg>
-        </div>
-        <div class="tile-empty-text">Slot Kosong — Tunggu Peer</div>`;
-      el.appendChild(v); el.appendChild(idx); el.appendChild(live); el.appendChild(pin); el.appendChild(name); el.appendChild(sub);
-      if (t.kind === 'empty') el.appendChild(empty); else empty.style.display = 'none';
-      el.addEventListener('click', () => { if (t.kind !== 'empty') togglePin(i); });
-      g.appendChild(el);
+      if (name.innerHTML !== nameHTML) name.innerHTML = nameHTML;
+      // Update empty state
+      empty.style.display = (t.kind === 'empty') ? '' : 'none';
     });
     $('tileCount').textContent = activeCount + '/9';
   }
@@ -951,7 +983,9 @@
       if (tiles[i].peerId === peerId) {
         if (tiles[i].stream) tiles[i].stream.getTracks().forEach(tr => tr.stop());
         if (tiles[i].source) { try { tiles[i].source.disconnect(); } catch (e) {} }
-        tiles[i] = { kind: 'empty', stream: null, analyser: null, source: null, name: '', micOn: false, pinned: false, peerId: null };
+        tiles[i] = { kind: 'empty', stream: null, analyser: null, source: null, gainNode: null, name: '', micOn: false, pinned: false, peerId: null };
+        // Reset the cache streamRef so next fill re-attaches cleanly
+        if (tileDomCache[i]) tileDomCache[i].streamRef = null;
       }
     }
     if (pinnedTile >= 0 && tiles[pinnedTile].peerId === peerId) pinnedTile = -1;
@@ -962,14 +996,37 @@
   function attachAudioAnalyser(i, stream) {
     try {
       if (!audioCtxMain) audioCtxMain = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtxMain.state === 'suspended') audioCtxMain.resume().catch(() => {});
       const audioTracks = stream.getAudioTracks();
       if (!audioTracks.length) return;
+      // Prevent duplicate source creation (causes phase cancellation / audio loss)
+      if (tiles[i].source) {
+        try { tiles[i].source.disconnect(); } catch (e) {}
+        tiles[i].source = null;
+      }
       const src = audioCtxMain.createMediaStreamSource(new MediaStream(audioTracks));
       const an = audioCtxMain.createAnalyser();
       an.fftSize = 256; an.smoothingTimeConstant = 0.5;
       src.connect(an);
       tiles[i].source = src; tiles[i].analyser = an;
-      // Don't connect to destination (avoid echo from remote)
+      // KEY FIX: for REMOTE peers, route audio to destination so user can hear them.
+      // For LOCAL streams (peerId === myPeerId), DON'T route here — local audio is
+      // routed separately in the join handler (avoids echo from hearing ourselves).
+      const isLocal = (tiles[i].peerId === myPeerId);
+      if (!isLocal) {
+        const gain = audioCtxMain.createGain(); gain.gain.value = 1.0;
+        an.connect(gain); gain.connect(audioCtxMain.destination);
+        tiles[i].gainNode = gain;
+      }
+      // Listen for track end so we can update UI gracefully
+      audioTracks.forEach(track => {
+        track.onended = () => {
+          console.log('[Audio] track ended for tile', i);
+          if (tiles[i].source) { try { tiles[i].source.disconnect(); } catch (e) {} tiles[i].source = null; }
+          if (tiles[i].analyser) { try { tiles[i].analyser.disconnect(); } catch (e) {} tiles[i].analyser = null; }
+          if (tiles[i].gainNode) { try { tiles[i].gainNode.disconnect(); } catch (e) {} tiles[i].gainNode = null; }
+        };
+      });
     } catch (e) { console.warn('analyser fail', e); }
   }
 
@@ -1142,6 +1199,23 @@
       peer.on('error', (err) => {
         console.error('[Peer] error', err);
         if (!opened) reject(err);
+        // After open, errors are recoverable — try to reconnect
+        if (opened && (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'disconnected')) {
+          console.log('[Peer] network/server error after open, scheduling reconnect');
+          try { peer.destroy(); } catch (e) {}
+          peer = null;
+          scheduleReconnect();
+        }
+      });
+      peer.on('disconnected', () => {
+        console.log('[Peer] disconnected from broker, attempting reconnect');
+        try { peer.reconnect(); } catch (e) {
+          // If reconnect fails, schedule full init
+          scheduleReconnect();
+        }
+      });
+      peer.on('close', () => {
+        console.log('[Peer] peer closed');
       });
       peer.on('connection', handleIncomingConnection);
       peer.on('call', handleIncomingCall);
@@ -1361,7 +1435,7 @@
           for (let i = 0; i < NUM_TILES; i++) {
             if (tiles[i].peerId === myPeerId && tiles[i].kind === 'screen') {
               if (tiles[i].stream) tiles[i].stream.getTracks().forEach(tr => tr.stop());
-              tiles[i] = { kind: 'empty', stream: null, analyser: null, source: null, name: '', micOn: false, pinned: false, peerId: null };
+              tiles[i] = { kind: 'empty', stream: null, analyser: null, source: null, gainNode: null, name: '', micOn: false, pinned: false, peerId: null };
             }
           }
           renderGallery();
@@ -1534,7 +1608,7 @@
       // Remove local screen tile
       for (let i = 0; i < NUM_TILES; i++) {
         if (tiles[i].peerId === myPeerId && tiles[i].kind === 'screen') {
-          tiles[i] = { kind: 'empty', stream: null, analyser: null, source: null, name: '', micOn: false, pinned: false, peerId: null };
+          tiles[i] = { kind: 'empty', stream: null, analyser: null, source: null, gainNode: null, name: '', micOn: false, pinned: false, peerId: null };
         }
       }
       renderGallery();
@@ -1839,7 +1913,7 @@
     if (mediaRecorder && mediaRecorder.state === 'recording') { try { mediaRecorder.stop(); } catch (e) {} }
     for (let i = 0; i < NUM_TILES; i++) {
       if (tiles[i].stream) tiles[i].stream.getTracks().forEach(tr => tr.stop());
-      tiles[i] = { kind: 'empty', stream: null, analyser: null, source: null, name: '', micOn: false, pinned: false, peerId: null };
+      tiles[i] = { kind: 'empty', stream: null, analyser: null, source: null, gainNode: null, name: '', micOn: false, pinned: false, peerId: null };
     }
     if (localStreams.cam) localStreams.cam.getTracks().forEach(t => t.stop());
     if (localStreams.screen) localStreams.screen.getTracks().forEach(t => t.stop());
@@ -1909,7 +1983,119 @@
     for (const t of tiles) if (t.stream) t.stream.getTracks().forEach(tr => tr.stop());
     if (peer) try { peer.destroy(); } catch (e) {}
   });
+
+  /* ============ 18. AUDIO HEALTH MONITORING ============ */
+  // Browsers suspend AudioContext when tab loses focus or after periods of
+  // inactivity. This causes "audio often disappears" — we proactively resume
+  // on visibility change and on ANY user interaction with the page.
+
+  function resumeAudio() {
+    if (!audioCtxMain) return;
+    if (audioCtxMain.state === 'suspended') {
+      audioCtxMain.resume().then(() => {
+        console.log('[Audio] AudioContext resumed');
+      }).catch((e) => console.warn('[Audio] resume failed', e));
+    }
+    // Also force-play all remote video elements (browser sometimes pauses them
+    // after a network hiccup)
+    for (let i = 0; i < NUM_TILES; i++) {
+      const t = tiles[i];
+      if (!t.stream || t.peerId === myPeerId) continue; // skip local + empty
+      const v = document.getElementById('tile-video-' + i);
+      if (v && v.paused) {
+        v.play().catch(() => {});
+      }
+    }
+  }
+
+  // Resume on visibility change (tab switch back, etc.)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      resumeAudio();
+      // Also re-init any stalled tracks
+      setTimeout(resumeAudio, 500);
+    }
+  });
+
+  // Resume on ANY user interaction (mouse, touch, key) — catches edge cases
+  // where AudioContext was suspended without visibility change (e.g., screen
+  // dimming, OS-level throttling)
+  const resumeOnInteraction = () => {
+    resumeAudio();
+    // Use once:true so we don't pile up listeners, but re-add on each click
+  };
+  document.addEventListener('click', resumeOnInteraction, { passive: true });
+  document.addEventListener('touchstart', resumeOnInteraction, { passive: true, once: false });
+  document.addEventListener('keydown', resumeOnInteraction, { passive: true });
+
+  // Periodic audio health check — every 5 seconds, verify all audio tracks
+  // are still alive and audio context is still running. If something died,
+  // try to recover gracefully.
+  setInterval(() => {
+    if (!audioCtxMain) return;
+    if (audioCtxMain.state === 'suspended') {
+      console.log('[Audio Health] AudioContext suspended, resuming…');
+      resumeAudio();
+    }
+    // Check each tile's audio tracks
+    for (let i = 0; i < NUM_TILES; i++) {
+      const t = tiles[i];
+      if (!t.stream) continue;
+      const audioTracks = t.stream.getAudioTracks();
+      for (const track of audioTracks) {
+        // If track ended, clean up analyser (will be re-attached if stream is
+        // refreshed by PeerJS)
+        if (track.readyState === 'ended' && t.analyser) {
+          console.log('[Audio Health] track ended on tile', i, '— cleaning up');
+          try { t.source?.disconnect(); } catch (e) {}
+          try { t.analyser?.disconnect(); } catch (e) {}
+          try { t.gainNode?.disconnect(); } catch (e) {}
+          t.source = null; t.analyser = null; t.gainNode = null;
+        }
+        // If track is muted (browser-level), unmute it
+        if (!track.enabled && t.peerId === myPeerId) {
+          // Local tracks we leave to the user's toggle
+        }
+      }
+      // Force-play remote video if paused
+      if (t.peerId !== myPeerId && t.peerId !== null) {
+        const v = document.getElementById('tile-video-' + i);
+        if (v && v.paused) {
+          v.play().catch(() => {});
+        }
+      }
+    }
+  }, 5000);
+
+  // PeerJS reconnect watchdog — if we lose connection to broker, try to
+  // reconnect automatically (with backoff) up to 3 times.
+  let reconnectAttempts = 0;
+  let reconnectTimer = null;
+  function scheduleReconnect() {
+    if (reconnectAttempts >= 3) return;
+    reconnectAttempts++;
+    const delay = 3000 * reconnectAttempts; // 3s, 6s, 9s
+    console.log(`[Peer] scheduling reconnect attempt ${reconnectAttempts} in ${delay}ms`);
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(() => {
+      if (!peer || peer.destroyed) {
+        initPeerWithTimeout(12000).then((result) => {
+          if (result.ok) {
+            console.log('[Peer] reconnected successfully');
+            reconnectAttempts = 0;
+            toast('PeerJS reconnected');
+          } else {
+            scheduleReconnect();
+          }
+        });
+      } else {
+        reconnectAttempts = 0;
+      }
+    }, delay);
+  }
+
   console.log('[App] Room Meeting P2P initialized. PeerJS broker: 0.peerjs.com (free).');
+  console.log('[App] Audio health monitoring active — checks every 5s');
 })();
 </script>
 </body>
