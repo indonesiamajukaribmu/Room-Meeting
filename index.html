@@ -1414,3 +1414,661 @@
         ctx.moveTo(cx + Math.cos(angle) * 25, cy + Math.sin(angle) * 25);
         ctx.lineTo(x2, y2);
         ctx.stroke();
+      }
+      // Center text
+      ctx.fillStyle = '#00ffaa';
+      ctx.font = 'bold 14px JetBrains Mono';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('AUDIO', cx, cy);
+      requestAnimationFrame(draw);
+    }
+    draw();
+  }
+
+  /* ============ 5. AUDIO ANALYSER PER TILE + ACTIVE SPEAKER DETECTION ============ */
+  const audioCtxMain = new (window.AudioContext || window.webkitAudioContext)();
+  function attachAudioAnalyser(i, stream) {
+    try {
+      const audioTracks = stream.getAudioTracks();
+      if (!audioTracks.length) { tiles[i].analyser = null; return; }
+      const src = audioCtxMain.createMediaStreamSource(new MediaStream(audioTracks));
+      const an = audioCtxMain.createAnalyser();
+      an.fftSize = 256; an.smoothingTimeConstant = 0.5;
+      src.connect(an);
+      tiles[i].source = src; tiles[i].analyser = an;
+      // Also route to destination if mic is ON
+      if (tiles[i].micOn) {
+        const gain = audioCtxMain.createGain(); gain.gain.value = 0.85;
+        an.connect(gain); gain.connect(audioCtxMain.destination);
+        tiles[i].gain = gain;
+      }
+    } catch (e) { console.warn('analyser fail', e); }
+  }
+
+  let activeSpeaker = -1;
+  function detectActiveSpeaker() {
+    let maxVol = 0; let maxI = -1;
+    for (let i = 0; i < NUM_TILES; i++) {
+      const t = tiles[i];
+      if (!t.analyser) continue;
+      const data = new Uint8Array(t.analyser.frequencyBinCount);
+      t.analyser.getByteFrequencyData(data);
+      let sum = 0;
+      for (let k = 0; k < data.length; k++) sum += data[k];
+      const avg = sum / data.length;
+      if (avg > maxVol) { maxVol = avg; maxI = i; }
+    }
+    const threshold = 8;
+    const newActive = (maxVol > threshold) ? maxI : -1;
+    if (newActive !== activeSpeaker) {
+      // Update classes
+      document.querySelectorAll('.tile.active-speaker').forEach(el => el.classList.remove('active-speaker'));
+      if (newActive >= 0) {
+        const el = document.getElementById('tile-' + newActive);
+        if (el) el.classList.add('active-speaker');
+      }
+      activeSpeaker = newActive;
+    }
+  }
+
+  /* ============ 6. SIDEBAR VISUALIZER (combined) ============ */
+  function drawSidebarVisualizer() {
+    const c = $('sideVisCanvas');
+    if (!c) return;
+    const dpr = window.devicePixelRatio || 1;
+    if (c.width !== c.clientWidth * dpr) { c.width = c.clientWidth * dpr; c.height = c.clientHeight * dpr; }
+    const ctx = c.getContext('2d');
+    const w = c.width, h = c.height;
+    ctx.clearRect(0, 0, w, h);
+    // Aggregate all analyser data
+    const bins = 64;
+    const agg = new Uint8Array(bins);
+    let any = false;
+    for (let i = 0; i < NUM_TILES; i++) {
+      if (!tiles[i].analyser) continue;
+      const d = new Uint8Array(tiles[i].analyser.frequencyBinCount);
+      tiles[i].analyser.getByteFrequencyData(d);
+      for (let k = 0; k < bins; k++) agg[k] = Math.max(agg[k], d[k]);
+      any = true;
+    }
+    if (any) {
+      const barW = w / bins;
+      for (let i = 0; i < bins; i++) {
+        const v = agg[i] / 255;
+        const bh = v * h;
+        const g = ctx.createLinearGradient(0, h, 0, 0);
+        g.addColorStop(0, '#00ffaa'); g.addColorStop(0.5, '#00b8ff'); g.addColorStop(1, '#6e8aff');
+        ctx.fillStyle = g;
+        ctx.fillRect(i * barW, h - bh, barW * 0.8, bh);
+      }
+      $('visLabel').textContent = 'Audio aktif dari ' + tiles.filter(t => t.analyser).length + ' sumber';
+    } else {
+      ctx.strokeStyle = 'rgba(0,255,170,0.2)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, h/2); ctx.lineTo(w, h/2); ctx.stroke();
+      $('visLabel').textContent = 'Tekan tombol AUDIO atau + Sumber';
+    }
+  }
+
+  /* ============ 7. SPEECH-TO-TEXT SUBTITLES (Web Speech API) ============ */
+  let recognition = null; let subtitlesOn = false; let subtitleBuf = '';
+  function initSpeechRecognition() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { console.warn('SpeechRecognition not supported'); return null; }
+    const r = new SR();
+    r.continuous = true; r.interimResults = true; r.lang = 'id-ID';
+    r.onresult = (e) => {
+      let interim = '', final = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const tr = e.results[i];
+        if (tr.isFinal) final += tr[0].transcript + ' ';
+        else interim += tr[0].transcript;
+      }
+      subtitleBuf = (final + interim).trim().slice(-200);
+      updateSubtitleDisplay();
+    };
+    r.onend = () => { if (subtitlesOn) try { r.start(); } catch (e) {} };
+    r.onerror = (e) => { console.warn('Speech error', e.error); };
+    return r;
+  }
+
+  function updateSubtitleDisplay() {
+    // Show subtitle on pinned tile, otherwise on active speaker tile
+    let target = pinnedTile;
+    if (target < 0) target = activeSpeaker;
+    // Clear all
+    for (let i = 0; i < NUM_TILES; i++) {
+      const el = document.getElementById('tile-sub-' + i);
+      if (el && i !== target) el.textContent = '';
+    }
+    if (target >= 0) {
+      const el = document.getElementById('tile-sub-' + target);
+      if (el) el.textContent = subtitleBuf;
+    }
+  }
+
+  $('btnSubtitle').addEventListener('click', () => {
+    const btn = $('btnSubtitle');
+    if (!subtitlesOn) {
+      if (!recognition) recognition = initSpeechRecognition();
+      if (!recognition) { toast('Browser tidak mendukung Speech Recognition. Coba Chrome.', true); return; }
+      try {
+        audioCtxMain.resume();
+        recognition.start();
+        subtitlesOn = true;
+        btn.classList.remove('off'); btn.classList.add('on');
+        btn.querySelector('.ctrl-label').textContent = 'SUBTITLE ON';
+        toast('Subtitle real-time AKTIF (speech-to-text bahasa Indonesia)');
+      } catch (e) { toast('Gagal: ' + e.message, true); }
+    } else {
+      try { recognition.stop(); } catch (e) {}
+      subtitlesOn = false;
+      subtitleBuf = '';
+      btn.classList.remove('on'); btn.classList.add('off');
+      btn.querySelector('.ctrl-label').textContent = 'SUBTITLE OFF';
+      updateSubtitleDisplay();
+      toast('Subtitle DIMATIKAN');
+    }
+  });
+
+  /* ============ 8. CONTROL BAR BUTTONS (master toggles) ============ */
+  const settings = { videoOn: false, audioOn: false, shareOn: false, isRecording: false };
+  let mediaRecorder = null; let recordedChunks = []; let recordingSession = ''; let chunkSeq = 0;
+
+  function getCombinedStream() {
+    // Combine video from first 3 video tiles + audio from first audio tile
+    const c = document.createElement('canvas');
+    c.width = 1280; c.height = 720;
+    const ctx = c.getContext('2d');
+    const videoTiles = tiles.filter(t => t.stream && t.stream.getVideoTracks().length > 0).slice(0, 4);
+    const audioTiles = tiles.filter(t => t.stream && t.stream.getAudioTracks().length > 0);
+    const dest = audioCtxMain.createMediaStreamDestination();
+    audioTiles.forEach(t => {
+      const src = audioCtxMain.createMediaStreamSource(new MediaStream(t.stream.getAudioTracks()));
+      src.connect(dest);
+    });
+    function drawLoop() {
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, c.width, c.height);
+      const n = videoTiles.length || 0;
+      if (n === 0) {
+        ctx.fillStyle = '#666'; ctx.font = 'bold 32px JetBrains Mono';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('AUDIO ONLY STREAM', c.width/2, c.height/2);
+      } else {
+        const cols = n <= 1 ? 1 : 2;
+        const rows = Math.ceil(n / cols);
+        const tw = c.width / cols; const th = c.height / rows;
+        for (let i = 0; i < n; i++) {
+          const col = i % cols; const row = Math.floor(i / cols);
+          const x = col * tw; const y = row * th;
+          const v = document.getElementById('tile-video-' + tiles.indexOf(videoTiles[i]));
+          if (v && v.videoWidth) {
+            ctx.save();
+            ctx.beginPath(); ctx.rect(x, y, tw, th); ctx.clip();
+            const ar = v.videoWidth / v.videoHeight;
+            const tar = tw / th;
+            let dw, dh;
+            if (ar > tar) { dw = tw; dh = tw / ar; } else { dh = th; dw = th * ar; }
+            ctx.drawImage(v, x + (tw - dw)/2, y + (th - dh)/2, dw, dh);
+            ctx.restore();
+          }
+          ctx.strokeStyle = '#00ffaa'; ctx.lineWidth = 2;
+          ctx.strokeRect(x, y, tw, th);
+        }
+      }
+      // TV overlay
+      ctx.fillStyle = 'rgba(255,59,59,0.9)';
+      ctx.fillRect(20, 20, 60, 24);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Inter';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('LIVE', 50, 32);
+      requestAnimationFrame(drawLoop);
+    }
+    drawLoop();
+    const stream = c.captureStream(30);
+    const audioTracks = dest.stream.getAudioTracks();
+    audioTracks.forEach(t => stream.addTrack(t));
+    return stream;
+  }
+
+  $('btnAudio').addEventListener('click', async () => {
+    const btn = $('btnAudio');
+    if (!settings.audioOn) {
+      // Find empty tile, add audio source
+      const slot = findEmptyTileSlot();
+      if (slot < 0) { toast('Semua slot terisi. Kosongkan satu slot untuk audio.', true); return; }
+      await addSourceToTile(slot, 'audio-only');
+      settings.audioOn = true;
+    } else {
+      // Stop all audio-only tiles
+      for (let i = 0; i < NUM_TILES; i++) {
+        if (tiles[i].kind === 'audio-only') { await clearTile(i); }
+      }
+      settings.audioOn = false;
+      btn.classList.remove('on'); btn.classList.add('off');
+      btn.querySelector('.ctrl-label').textContent = 'AUDIO OFF';
+      toast('Semua sumber audio dimatikan');
+    }
+  });
+
+  $('btnVideo').addEventListener('click', async () => {
+    const btn = $('btnVideo');
+    if (!settings.videoOn) {
+      const slot = findEmptyTileSlot();
+      if (slot < 0) { toast('Semua slot terisi.', true); return; }
+      await addSourceToTile(slot, 'camera');
+      settings.videoOn = true;
+    } else {
+      for (let i = 0; i < NUM_TILES; i++) {
+        if (tiles[i].kind === 'local-cam') { await clearTile(i); }
+      }
+      settings.videoOn = false;
+      btn.classList.remove('on'); btn.classList.add('off');
+      btn.querySelector('.ctrl-label').textContent = 'VIDEO OFF';
+      $('resolution').textContent = '—';
+      toast('Semua kamera dimatikan');
+    }
+  });
+
+  $('btnShare').addEventListener('click', async () => {
+    const btn = $('btnShare');
+    if (!settings.shareOn) {
+      const slot = findEmptyTileSlot();
+      if (slot < 0) { toast('Semua slot terisi.', true); return; }
+      await addSourceToTile(slot, 'screen');
+      settings.shareOn = true;
+    } else {
+      for (let i = 0; i < NUM_TILES; i++) {
+        if (tiles[i].kind === 'screen') { await clearTile(i); }
+      }
+      settings.shareOn = false;
+      btn.classList.remove('on'); btn.classList.add('off');
+      btn.querySelector('.ctrl-label').textContent = 'SHARE OFF';
+      toast('Screen share dimatikan');
+    }
+  });
+
+  /* ============ 9. RECORDING ============ */
+  $('btnRecord').addEventListener('click', async () => {
+    const btn = $('btnRecord');
+    if (!settings.isRecording) {
+      const stream = getCombinedStream();
+      if (!stream) { toast('Aktifkan sumber terlebih dahulu', true); return; }
+      try {
+        const opts = { mimeType: 'video/webm;codecs=vp9,opus', videoBitsPerSecond: 2_500_000 };
+        if (!MediaRecorder.isTypeSupported(opts.mimeType)) opts.mimeType = 'video/webm;codecs=vp8,opus';
+        if (!MediaRecorder.isTypeSupported(opts.mimeType)) delete opts.mimeType;
+        recordingSession = Math.random().toString(36).slice(2, 10);
+        chunkSeq = 0; recordedChunks = [];
+        mediaRecorder = new MediaRecorder(stream, opts);
+        mediaRecorder.ondataavailable = async (e) => {
+          if (e.data && e.data.size > 0) {
+            recordedChunks.push(e.data);
+            try {
+              const fd = new FormData();
+              fd.append('video', e.data, `chunk_${chunkSeq}.webm`);
+              fd.append('session_id', recordingSession);
+              fd.append('seq', String(chunkSeq));
+              await fetch('/api/upload_chunk', { method: 'POST', body: fd });
+              if (e.data.size < 1_000_000) {
+                const b64 = await blobToBase64(e.data);
+                socket.emit('broadcast_chunk', { b64, type: e.data.type, seq: chunkSeq });
+              }
+              chunkSeq++;
+            } catch (err) { console.warn('upload err', err); }
+          }
+        };
+        mediaRecorder.onstop = async () => {
+          try {
+            const r = await fetch('/api/finalize_recording', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ session_id: recordingSession, total_chunks: chunkSeq })
+            });
+            const j = await r.json();
+            if (j.ok) toast('Rekaman siaran siap: ' + j.filename);
+            else toast('Gagal finalisasi rekaman', true);
+          } catch (e) { toast('Kesalahan: ' + e.message, true); }
+        };
+        mediaRecorder.start(1000);
+        settings.isRecording = true;
+        btn.classList.remove('off'); btn.classList.add('recording');
+        btn.querySelector('.ctrl-label').textContent = 'REC ON';
+        toast('Siaran direkam — klik lagi untuk berhenti & simpan');
+      } catch (e) { toast('Gagal mulai rekaman: ' + e.message, true); }
+    } else {
+      try { if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); } catch (e) {}
+      settings.isRecording = false;
+      btn.classList.remove('recording'); btn.classList.add('off');
+      btn.querySelector('.ctrl-label').textContent = 'RECORD OFF';
+      toast('Rekaman dihentikan — memproses…');
+    }
+  });
+
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => { const s = r.result; resolve(s.substring(s.indexOf(',') + 1)); };
+      r.onerror = reject; r.readAsDataURL(blob);
+    });
+  }
+
+  /* ============ 10. DOWNLOAD ============ */
+  $('btnDownload').addEventListener('click', async () => {
+    const modal = $('recModal'); modal.classList.add('show');
+    const list = $('recList');
+    list.innerHTML = '<div style="color:#6b7588;font-size:12px;text-align:center;padding:20px;">Memuat rekaman…</div>';
+    try {
+      const r = await fetch('/api/recordings');
+      const j = await r.json();
+      if (!j.recordings || j.recordings.length === 0) {
+        list.innerHTML = '<div style="color:#6b7588;font-size:12px;text-align:center;padding:20px;">Belum ada rekaman. Klik tombol RECORD untuk mulai merekam siaran, lalu klik lagi untuk berhenti. File .webm akan muncul di sini.</div>';
+        return;
+      }
+      list.innerHTML = '';
+      j.recordings.forEach(rec => {
+        const item = document.createElement('div'); item.className = 'rec-item';
+        const sizeKB = (rec.size / 1024).toFixed(1);
+        const sizeStr = sizeKB > 1024 ? (sizeKB / 1024).toFixed(2) + ' MB' : sizeKB + ' KB';
+        const dt = new Date(rec.mtime);
+        item.innerHTML = `
+          <div class="rec-info">
+            <div class="rec-name">${rec.name}</div>
+            <div class="rec-meta">${dt.toLocaleString('id-ID')} · ${sizeStr}</div>
+          </div>
+          <a class="rec-dl" href="${rec.url}" download="${rec.name}">Unduh</a>`;
+        list.appendChild(item);
+      });
+    } catch (e) {
+      list.innerHTML = '<div style="color:#ff6b6b;font-size:12px;text-align:center;padding:20px;">Gagal memuat: ' + e.message + '</div>';
+    }
+  });
+  $('recClose').addEventListener('click', () => $('recModal').classList.remove('show'));
+  $('recModal').addEventListener('click', (e) => { if (e.target === $('recModal')) $('recModal').classList.remove('show'); });
+
+  /* ============ 11. STATUS CONTROL ============ */
+  let currentStatus = 'offline'; let startTime = 0;
+  function statusToText(s) { return s === 'live' ? 'Sedang siaran langsung' : (s === 'online' ? 'Sedang online' : 'Sedang offline'); }
+  function updateStatus(status) {
+    currentStatus = status;
+    const ind = $('statusInd');
+    ind.classList.remove('offline', 'online', 'live'); ind.classList.add(status);
+    const text = status === 'live' ? 'LIVE' : (status === 'online' ? 'Online' : 'Offline');
+    $('statusValue').textContent = text;
+    $('topStat').textContent = text.toUpperCase();
+    $('topStat').classList.toggle('live-count', status === 'live');
+    document.querySelectorAll('.status-pill').forEach(p => p.classList.toggle('active', p.dataset.status === status));
+    // Update tile live-feed
+    document.querySelectorAll('.tile').forEach(el => {
+      const idx = +el.dataset.idx;
+      if (tiles[idx] && tiles[idx].kind !== 'empty' && status === 'live') el.classList.add('live-feed');
+      else if (status !== 'live' && !tiles[idx]?.pinned) el.classList.remove('live-feed');
+    });
+    if (status === 'live' && !startTime) startTime = Date.now();
+    else if (status === 'offline') startTime = 0;
+  }
+  document.querySelectorAll('.status-pill').forEach(p => {
+    p.addEventListener('click', () => {
+      const s = p.dataset.status;
+      socket.emit('set_host_status', { status: s });
+      updateStatus(s); toast('Status: ' + s.toUpperCase());
+    });
+  });
+  $('statusInd').addEventListener('click', () => {
+    const order = ['offline', 'online', 'live'];
+    const next = order[(order.indexOf(currentStatus) + 1) % 3];
+    socket.emit('set_host_status', { status: next });
+    updateStatus(next); toast('Status: ' + next.toUpperCase());
+  });
+
+  /* ============ 12. TV PLAYBACK (progress bar) ============ */
+  let tvProgress = 0;
+  function updateTvProgress() {
+    if (currentStatus === 'live') {
+      tvProgress = Math.min(100, tvProgress + 0.05);
+      $('tvProgressFill').style.width = tvProgress + '%';
+      $('tvProgressThumb').style.left = tvProgress + '%';
+      const elapsed = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
+      $('tvCurTime').textContent = formatTime(elapsed);
+      $('tvTotTime').textContent = 'LIVE';
+    } else {
+      tvProgress = 0;
+      $('tvProgressFill').style.width = '0%';
+      $('tvProgressThumb').style.left = '0%';
+      $('tvCurTime').textContent = '00:00:00';
+      $('tvTotTime').textContent = '—';
+    }
+  }
+  function formatTime(s) {
+    const h = String(Math.floor(s / 3600)).padStart(2, '0');
+    const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+    const sec = String(s % 60).padStart(2, '0');
+    return `${h}:${m}:${sec}`;
+  }
+  // Play button toggles live mode
+  $('pbPlay').addEventListener('click', () => {
+    const icon = $('pbPlayIcon');
+    if (currentStatus === 'live') {
+      socket.emit('set_host_status', { status: 'online' });
+      updateStatus('online');
+      icon.innerHTML = '<polygon points="6 4 20 12 6 20 6 4"/>';
+    } else {
+      socket.emit('set_host_status', { status: 'live' });
+      updateStatus('live');
+      icon.innerHTML = '<rect x="6" y="5" width="4" height="14" fill="currentColor"/><rect x="14" y="5" width="4" height="14" fill="currentColor"/>';
+    }
+  });
+  $('pbFullscreen').addEventListener('click', () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  });
+  $('pbRewind').addEventListener('click', () => toast('Mundur 10 detik (siaran langsung — tidak dapat mundur)'));
+  $('pbForward').addEventListener('click', () => toast('Maju 10 detik (siaran langsung — tidak dapat maju)'));
+
+  /* ============ 13. CHAT ============ */
+  function addChat(name, text) {
+    const list = $('chatList');
+    const msg = document.createElement('div'); msg.className = 'chat-msg';
+    msg.innerHTML = `<span class="name">${escapeHtml(name)}</span><span class="text">${escapeHtml(text)}</span>`;
+    list.appendChild(msg); list.scrollTop = list.scrollHeight;
+    while (list.children.length > 50) list.removeChild(list.firstChild);
+  }
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  $('chatSend').addEventListener('click', () => {
+    const inp = $('chatInput'); const t = inp.value.trim();
+    if (!t) return;
+    socket.emit('chat_message', { text: t });
+    addChat('Saya', t); inp.value = '';
+  });
+  $('chatInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('chatSend').click(); });
+
+  /* ============ 14. PARTICIPANTS LIST ============ */
+  function updateParticipants() {
+    const list = $('participants');
+    list.innerHTML = '';
+    let count = 0;
+    tiles.forEach((t, i) => {
+      if (t.kind === 'empty') return;
+      count++;
+      const p = document.createElement('div'); p.className = 'participant';
+      const initial = (t.name || '?').charAt(0).toUpperCase();
+      const isHost = t.kind === 'local-cam' || t.kind === 'audio-only';
+      const micClass = t.micOn ? 'on' : 'off';
+      p.innerHTML = `
+        <div class="participant-avatar ${isHost ? 'host' : ''}">${initial}</div>
+        <div class="participant-name">${escapeHtml(t.name)} <span style="color:#6b7588;font-size:10px">· Slot ${i+1}</span></div>
+        <div class="participant-icons">
+          <svg class="${micClass}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+          <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        </div>`;
+      list.appendChild(p);
+    });
+    $('partCount').textContent = count;
+  }
+
+  /* ============ 15. HELPERS ============ */
+  function updateResolution() {
+    for (const t of tiles) {
+      if (t.stream && t.stream.getVideoTracks().length) {
+        const s = t.stream.getVideoTracks()[0].getSettings();
+        $('resolution').textContent = (s.width || 1280) + 'x' + (s.height || 720);
+        return;
+      }
+    }
+    $('resolution').textContent = '—';
+  }
+
+  let toastTimer = null;
+  function toast(msg, isError) {
+    const t = $('toast');
+    t.textContent = msg; t.classList.toggle('error', !!isError); t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  /* ============ 16. LEAVE BUTTON ============ */
+  /* ============ 16. ENGAGEMENT BUTTONS — Like / Subscribe / Share ============ */
+  let likeCount = 0; let subCount = 0;
+  let isLiked = false; let isSubscribed = false;
+
+  // Generate random initial counts for realism
+  likeCount = Math.floor(Math.random() * 200) + 50;
+  subCount = Math.floor(Math.random() * 5000) + 1500;
+  $('likeCount').textContent = formatCount(likeCount);
+  $('subCount').textContent = formatCount(subCount);
+
+  function formatCount(n) {
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+    return String(n);
+  }
+
+  $('btnLike').addEventListener('click', () => {
+    const btn = $('btnLike');
+    if (!isLiked) {
+      isLiked = true; likeCount++;
+      btn.classList.add('liked');
+      // Pop animation
+      const svg = btn.querySelector('svg');
+      svg.style.transform = 'scale(1.3)';
+      setTimeout(() => svg.style.transform = '', 200);
+      toast('Anda menyukai siaran ini');
+    } else {
+      isLiked = false; likeCount = Math.max(0, likeCount - 1);
+      btn.classList.remove('liked');
+    }
+    $('likeCount').textContent = formatCount(likeCount);
+    // Broadcast to other viewers via socket
+    socket.emit('chat_message', { text: (isLiked ? '👍 menyukai siaran' : '👎 batal like') });
+  });
+
+  $('btnSubscribe').addEventListener('click', () => {
+    const btn = $('btnSubscribe');
+    const subText = btn.querySelector('.sub-text');
+    if (!isSubscribed) {
+      isSubscribed = true; subCount++;
+      btn.classList.add('subscribed');
+      subText.textContent = 'SUBSCRIBED';
+      toast('Terima kasih sudah subscribe! 🔔');
+      // Notify others
+      socket.emit('chat_message', { text: '🔔 baru subscribe channel!' });
+    } else {
+      isSubscribed = false; subCount = Math.max(0, subCount - 1);
+      btn.classList.remove('subscribed');
+      subText.textContent = 'SUBSCRIBE';
+      toast('Berhelah subscribe');
+    }
+    $('subCount').textContent = formatCount(subCount);
+  });
+
+  $('btnShare2').addEventListener('click', async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Ruang Siaran Langsung', text: 'Tonton siaran langsung ini!', url });
+        toast('Tautan dibagikan');
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+        toast('Tautan disalin ke clipboard');
+      } else {
+        toast('URL: ' + url);
+      }
+    } catch (e) {
+      // Fallback: select URL via prompt
+      window.prompt('Salin tautan ini:', url);
+    }
+  });
+
+  $('btnLeave').addEventListener('click', () => {
+    if (settings.isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
+      try { mediaRecorder.stop(); } catch (e) {}
+    }
+    tiles.forEach((t, i) => { if (t.stream) t.stream.getTracks().forEach(tr => tr.stop()); });
+    if (recognition) { try { recognition.stop(); } catch (e) {} }
+    socket.emit('set_host_status', { status: 'offline' });
+    updateStatus('offline');
+    settings.videoOn = settings.audioOn = settings.shareOn = settings.isRecording = false;
+    for (let i = 0; i < NUM_TILES; i++) tiles[i] = { kind: 'empty', stream: null, analyser: null, source: null, name: '', micOn: false, pinned: false, audioCtx: null };
+    pinnedTile = -1;
+    renderGallery(); updateParticipants();
+    ['btnAudio', 'btnVideo', 'btnShare', 'btnRecord'].forEach(id => {
+      const b = $(id); b.classList.remove('on', 'recording'); b.classList.add('off');
+      const label = b.querySelector('.ctrl-label');
+      const base = id.replace('btn', '').toUpperCase();
+      label.textContent = base + ' OFF';
+    });
+    toast('Anda keluar dari siaran — semua sumber dimatikan');
+  });
+
+  /* ============ 17. ANIMATION LOOP ============ */
+  let fpsCounter = 0; let fpsLastTime = performance.now();
+  function loop() {
+    fpsCounter++;
+    const now = performance.now();
+    if (now - fpsLastTime >= 1000) {
+      $('fps').textContent = fpsCounter;
+      fpsCounter = 0; fpsLastTime = now;
+    }
+    detectActiveSpeaker();
+    drawSidebarVisualizer();
+    if (subtitlesOn) updateSubtitleDisplay();
+    requestAnimationFrame(loop);
+  }
+
+  setInterval(() => {
+    if (startTime) {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      $('uptime').textContent = formatTime(elapsed);
+      $('statusTime').textContent = formatTime(elapsed);
+    } else {
+      $('statusTime').textContent = new Date().toTimeString().slice(0, 8);
+    }
+    updateTvProgress();
+    // Bitrate estimate
+    let br = 0;
+    for (const t of tiles) {
+      if (t.stream) {
+        if (t.stream.getVideoTracks().length) br += 1800;
+        if (t.stream.getAudioTracks().length) br += 128;
+      }
+    }
+    $('bitrate').textContent = br + ' kbps';
+  }, 1000);
+
+  /* ============ 18. INITIAL SETUP ============ */
+  renderGallery(); updateParticipants();
+  setTimeout(() => { drawSidebarVisualizer(); }, 1500);
+  fetch('/api/state').then(r => r.json()).then(s => {
+    updateStatus(s.status);
+    $('chName').textContent = s.host_name || 'Host';
+    $('chSub').textContent = statusToText(s.status);
+  }).catch(() => {});
+  requestAnimationFrame(loop);
+  window.addEventListener('beforeunload', () => {
+    if (settings.isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
+      try { mediaRecorder.stop(); } catch (e) {}
+    }
+    tiles.forEach(t => { if (t.stream) t.stream.getTracks().forEach(tr => tr.stop()); });
+  });
+  console.log('[App] TV Broadcast Studio initialized — 9-slot gallery ready');
+})();
+</script>
+</body>
+</html>
