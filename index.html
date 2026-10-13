@@ -1049,7 +1049,14 @@
   function initPeer() {
     return new Promise((resolve, reject) => {
       // Try to be the lobby first
-      const testPeer = new Peer(ROOM_ID, { debug: 1 });
+      let testPeer = null;
+      try {
+        testPeer = new Peer(ROOM_ID, { debug: 1 });
+      } catch (e) {
+        console.error('[Peer] failed to construct testPeer', e);
+        becomeRegularPeer().then(resolve).catch(reject);
+        return;
+      }
       let resolved = false;
       const failTimer = setTimeout(() => {
         if (resolved) return;
@@ -1079,12 +1086,34 @@
         } else {
           console.error('[Peer] lobby error', err);
           // Fall back to regular peer anyway
-          if (!resolved) {
-            resolved = true;
-            try { testPeer.destroy(); } catch (e) {}
-            becomeRegularPeer().then(resolve).catch(reject);
-          }
+          resolved = true;
+          try { testPeer.destroy(); } catch (e) {}
+          becomeRegularPeer().then(resolve).catch(reject);
         }
+      });
+    });
+  }
+
+  // initPeer with hard timeout — never hang the user.
+  // Returns { ok: boolean, error?: string }
+  function initPeerWithTimeout(maxMs = 12000) {
+    return new Promise((resolve) => {
+      let done = false;
+      const timer = setTimeout(() => {
+        if (done) return;
+        done = true;
+        resolve({ ok: false, error: 'timeout' });
+      }, maxMs);
+      initPeer().then(() => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        resolve({ ok: true });
+      }).catch((e) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        resolve({ ok: false, error: e?.message || String(e) });
       });
     });
   }
@@ -1302,15 +1331,25 @@
     btn.disabled = true;
     btn.textContent = 'Mengaktifkan…';
     try {
-      // One user gesture: request audio + video + screen in one click
-      // Audio + camera (one getUserMedia call)
-      const camStream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-        video: { width: { ideal: 1280 }, height: { ideal: 720 } }
-      });
+      // === STEP 1: Get local camera + microphone (required) ===
+      let camStream;
+      try {
+        camStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
+      } catch (micErr) {
+        // Fallback: try video-only (mic may be unavailable)
+        console.warn('Audio+video failed, trying video only:', micErr.message);
+        camStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
+        toast('Mikrofon tidak tersedia — mode video saja');
+      }
       localStreams.cam = camStream;
 
-      // Try to also get screen share (may be cancelled by user — that's OK)
+      // === STEP 2: Try screen share (non-fatal) ===
       try {
         const screenStream = await navigator.mediaDevices.getDisplayMedia({
           video: { frameRate: 30 },
@@ -1319,32 +1358,46 @@
         localStreams.screen = screenStream;
         screenStream.getVideoTracks()[0].addEventListener('ended', () => {
           localStreams.screen = null;
-          // Update tile for local screen share
           for (let i = 0; i < NUM_TILES; i++) {
-            if (tiles[i].peerId === myPeerId && tiles[i].kind === 'screen-local') {
+            if (tiles[i].peerId === myPeerId && tiles[i].kind === 'screen') {
               if (tiles[i].stream) tiles[i].stream.getTracks().forEach(tr => tr.stop());
               tiles[i] = { kind: 'empty', stream: null, analyser: null, source: null, name: '', micOn: false, pinned: false, peerId: null };
             }
           }
           renderGallery();
           updateParticipants();
+          $('btnShare2').classList.remove('on'); $('btnShare2').classList.add('off');
+          $('btnShare2').querySelector('.ctrl-label').textContent = 'SHARE OFF';
         });
       } catch (e) {
         console.warn('Screen share not granted:', e.message);
-        // Continue without screen share
+        // Continue without screen share — that's OK
       }
 
-      // Now place local streams in tiles
-      // Slot 1: local cam (mirror)
+      // === STEP 3: Setup audio context (non-fatal) ===
+      try {
+        if (!audioCtxMain) audioCtxMain = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtxMain.state === 'suspended') await audioCtxMain.resume();
+        const audioTracks = camStream.getAudioTracks();
+        if (audioTracks.length > 0) {
+          const src = audioCtxMain.createMediaStreamSource(new MediaStream(audioTracks));
+          const an = audioCtxMain.createAnalyser(); an.fftSize = 256;
+          const gain = audioCtxMain.createGain(); gain.gain.value = 0.85;
+          src.connect(an); an.connect(gain); gain.connect(audioCtxMain.destination);
+        }
+      } catch (e) {
+        console.warn('Audio context setup failed (non-fatal):', e.message);
+      }
+
+      // === STEP 4: Place local streams in tiles ===
       const slot1 = 0;
       tiles[slot1] = {
         kind: 'local-cam', stream: camStream,
-        name: myName + ' (Anda)', micOn: true,
+        name: myName + ' (Anda)', micOn: camStream.getAudioTracks().length > 0,
         pinned: false, peerId: myPeerId, source: null, analyser: null
       };
-      attachAudioAnalyser(slot1, camStream);
+      try { attachAudioAnalyser(slot1, camStream); } catch (e) {}
 
-      // Slot 2: local screen share if available
       if (localStreams.screen) {
         const slot2 = 1;
         tiles[slot2] = {
@@ -1352,25 +1405,19 @@
           name: myName + ' (Share)', micOn: localStreams.screen.getAudioTracks().length > 0,
           pinned: false, peerId: myPeerId, source: null, analyser: null
         };
+        try { attachAudioAnalyser(slot2, localStreams.screen); } catch (e) {}
       }
-
-      // Setup audio context for routing mic to speakers (bypass detectors)
-      if (!audioCtxMain) audioCtxMain = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtxMain.state === 'suspended') await audioCtxMain.resume();
-      const src = audioCtxMain.createMediaStreamSource(new MediaStream(camStream.getAudioTracks()));
-      const an = audioCtxMain.createAnalyser(); an.fftSize = 256;
-      const gain = audioCtxMain.createGain(); gain.gain.value = 0.85;
-      src.connect(an); an.connect(gain); gain.connect(audioCtxMain.destination);
 
       renderGallery();
       updateParticipants();
 
-      // Init PeerJS
-      $('joinBtn').textContent = 'Menghubungkan ke jaringan…';
-      await initPeer();
+      // === STEP 5: Hide loader, show app IMMEDIATELY ===
+      // We do NOT wait for PeerJS — user sees the app within seconds of clicking.
       joined = true;
+      $('loader').classList.add('hidden');
+      $('app').classList.add('ready');
 
-      // Auto-set status to LIVE (audio + video + share all active = LIVE)
+      // Auto-set status to LIVE (audio + video + share all active)
       setStatus('live');
       $('btnAudio').classList.remove('off'); $('btnAudio').classList.add('on');
       $('btnAudio').querySelector('.ctrl-label').textContent = 'AUDIO ON';
@@ -1381,27 +1428,45 @@
         $('btnShare2').querySelector('.ctrl-label').textContent = 'SHARE ON';
       }
 
-      // Hide loader, show app
-      $('loader').classList.add('hidden');
-      $('app').classList.add('ready');
-
       // Set resolution display
-      const settings = camStream.getVideoTracks()[0].getSettings();
-      $('resolution').textContent = (settings.width || 1280) + 'x' + (settings.height || 720);
+      try {
+        const settings = camStream.getVideoTracks()[0].getSettings();
+        $('resolution').textContent = (settings.width || 1280) + 'x' + (settings.height || 720);
+      } catch (e) {}
 
       addChat('System', 'Anda bergabung sebagai ' + myName);
-      toast('Berhasil bergabung! Audio + Video + Share aktif');
+      toast('Berhasil masuk! Audio + Video aktif' + (localStreams.screen ? ' + Share' : ''));
 
-      // Broadcast join to peers (also done in connectToPeer)
-      broadcastToPeers({ type: 'chat', name: 'System', text: myName + ' baru bergabung' });
+      // === STEP 6: Connect PeerJS in background (non-blocking) ===
+      // Show a separate status indicator while connecting.
+      toast('Menghubungkan ke jaringan peer…');
+      initPeerWithTimeout(12000).then((result) => {
+        if (result.ok) {
+          toast('Terhubung ke jaringan peer! Tunggu peer lain bergabung.');
+          addChat('System', 'Terhubung ke jaringan peer.');
+        } else {
+          console.error('[Peer] connection failed:', result.error);
+          toast('PeerJS gagal terhubung — mode lokal aktif. Coba refresh nanti.', true);
+          addChat('System', 'Gagal terhubung ke peer. Anda tetap bisa rekam & preview lokal.');
+          // Reset peer state so user can retry by leaving and rejoining
+          if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+          isLobby = false;
+          peers = {};
+        }
+      });
+      // Note: broadcastToPeers is called inside connectToPeer / handleIncomingConnection
     } catch (e) {
       console.error(e);
       btn.disabled = false;
       btn.textContent = 'MASUK SIARAN';
       if (e.name === 'NotAllowedError') {
-        toast('Izin kamera/mikrofon ditolak. Beri izin lalu coba lagi.', true);
+        toast('Izin kamera/mikrofon ditolak. Klik Allow lalu coba lagi.', true);
+      } else if (e.name === 'NotFoundError') {
+        toast('Kamera/mikrofon tidak ditemukan. Cek perangkat & coba lagi.', true);
+      } else if (e.name === 'NotReadableError') {
+        toast('Kamera/mikrofon sedang dipakai aplikasi lain. Tutup dulu.', true);
       } else {
-        toast('Gagal: ' + e.message, true);
+        toast('Gagal: ' + (e.message || e.name), true);
       }
     }
   });
