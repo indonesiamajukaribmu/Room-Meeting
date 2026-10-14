@@ -1,6 +1,9 @@
 """
 RUANG SIARAN — Server Python (Flask)
 pip install flask  →  python server.py  →  buka http://localhost:5000
+
+Peserta: setiap browser yang membuka halaman ini otomatis terdaftar via
+/api/join + /api/heartbeat, dan muncul di panel PARTICIPANTS semua pengunjung.
 """
 import os, time, threading
 from flask import Flask, request, jsonify, send_from_directory
@@ -11,8 +14,15 @@ app = Flask(__name__, static_folder=BASE, static_url_path="")
 
 _state = {"status": "offline", "updated_at": 0.0}
 _lock = threading.Lock()
-_clients, _chat, _chat_id = {}, [], 0
+_participants = {}          # id -> {name, t}
+_chat, _chat_id = [], 0
 VALID = ("offline", "online", "live")
+TTL = 15.0                  # detik dianggap hilang
+
+def _prune():
+    now = time.time()
+    for k in [k for k, v in _participants.items() if now - v["t"] > TTL]:
+        del _participants[k]
 
 @app.get("/")
 def home(): return send_from_directory(BASE, "index.html")
@@ -32,17 +42,42 @@ def set_status():
         _state["status"] = st; _state["updated_at"] = time.time()
         return jsonify(ok=True, **_state)
 
+@app.post("/api/join")
+def join():
+    d = request.get_json(silent=True, force=True) or {}
+    pid = str(d.get("id") or request.remote_addr)[:64]
+    name = str(d.get("name", "Tamu"))[:30]
+    with _lock:
+        _participants[pid] = {"name": name, "t": time.time()}
+        return jsonify(ok=True)
+
+@app.post("/api/leave")
+def leave():
+    d = request.get_json(silent=True, force=True) or {}
+    pid = str(d.get("id") or request.remote_addr)[:64]
+    with _lock: _participants.pop(pid, None)
+    return jsonify(ok=True)
+
 @app.post("/api/heartbeat")
 def heartbeat():
-    global _clients
-    cid = (request.get_json(silent=True) or {}).get("id") or request.remote_addr
+    d = request.get_json(silent=True, force=True) or {}
+    pid = str(d.get("id") or request.remote_addr)[:64]
+    name = str(d.get("name", "Tamu"))[:30]
     with _lock:
-        _clients = {k: v for k, v in _clients.items() if time.time() - v < 10}
-        _clients[cid] = time.time()
-        return jsonify(ok=True, viewers=len(_clients))
+        _prune()
+        _participants[pid] = {"name": name, "t": time.time()}
+        return jsonify(ok=True, viewers=len(_participants),
+                       participants=[{"id": k, "name": v["name"]} for k, v in _participants.items()])
+
+@app.get("/api/participants")
+def participants():
+    with _lock:
+        _prune()
+        return jsonify(ok=True, participants=[{"id": k, "name": v["name"]} for k, v in _participants.items()])
 
 @app.get("/api/chat")
 def chat_get():
+    global _chat
     after = int(request.args.get("after", 0))
     with _lock:
         items = [c for c in _chat if c["id"] > after][-100:]
@@ -67,13 +102,6 @@ def upload():
     name = os.path.basename(time.strftime('%Y%m%d-%H%M%S-') + f.filename).replace("..", "_")
     f.save(os.path.join(REC_DIR, name))
     return jsonify(ok=True, name=name, size=os.path.getsize(os.path.join(REC_DIR, name)))
-
-@app.get("/api/recordings")
-def recordings():
-    with _lock: pass
-    items = [{"name": n, "size": os.path.getsize(os.path.join(REC_DIR, n)), "url": f"/recordings/{n}"}
-             for n in sorted(os.listdir(REC_DIR), reverse=True) if os.path.isfile(os.path.join(REC_DIR, n))]
-    return jsonify(ok=True, items=items)
 
 @app.get("/recordings/<path:name>")
 def rec_file(name): return send_from_directory(REC_DIR, name)
