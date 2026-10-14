@@ -7,7 +7,7 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Rajdhani:wght@400;500;600;700&display=swap');
 :root{
-  --bg:#04090c; --p1:#071219; --p2:#081821; --p3:#0a1c26; --line:#10262f;
+  --bg:#04090c; --p1:#071219; --p2:#081821; --line:#10262f;
   --txt:#d9f1f2; --mut:#5c7d8a; --teal:#25e2c5; --green:#35e07c; --red:#ff4d5e; --orange:#ff9e2e;
 }
 *{margin:0;padding:0;box-sizing:border-box}
@@ -80,28 +80,40 @@ body.ready #app{opacity:1}
 .slot{position:relative;border-radius:12px;background:linear-gradient(180deg,#061019,#040b10);border:1px solid var(--line);
   overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:0}
 .slot.active{border-color:rgba(37,226,197,.75);box-shadow:0 0 20px rgba(37,226,197,.18),inset 0 0 30px rgba(37,226,197,.05)}
-.slot video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.slabel{position:absolute;top:9px;left:10px;font-size:10.5px;font-weight:700;letter-spacing:2px;color:var(--mut)}
-.slot .lv{position:absolute;top:8px;right:8px}
-.sfoot{position:absolute;left:10px;bottom:8px;display:flex;align-items:center;gap:7px;font-weight:700;font-size:12.5px;letter-spacing:1px}
+.slot video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;background:#000}
+.slabel{position:absolute;top:9px;left:10px;font-size:10.5px;font-weight:700;letter-spacing:2px;color:var(--mut);z-index:5}
+.slot .lv{position:absolute;top:8px;right:8px;z-index:5}
+.sfoot{position:absolute;left:10px;bottom:8px;display:flex;align-items:center;gap:7px;font-weight:700;font-size:12.5px;letter-spacing:1px;z-index:5}
 .sfoot.g{color:#8dffc0}.sfoot.t{color:#8feee2}.sfoot.r{color:#ff9aa5}
 .sfoot svg{width:14px;height:14px}
-.sempty{display:flex;flex-direction:column;align-items:center;gap:8px}
-.sempty .ph{width:46px;height:46px;border-radius:50%;border:1.6px solid #1d3b47;color:#3f6474;display:flex;align-items:center;justify-content:center}
+.offbadge{display:inline-flex;align-items:center;background:rgba(255,77,94,.14);border:1px solid rgba(255,77,94,.6);color:#ff9aa5;
+  font-weight:700;font-size:10.5px;letter-spacing:2px;padding:5px 10px;border-radius:7px}
+.tilewave{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+.miccenter{position:relative;z-index:3;color:var(--teal);filter:drop-shadow(0 0 10px rgba(37,226,197,.6))}
+.miccenter svg{width:44px;height:44px}
+
+/* placeholder kosong / off — WAJIB terlihat */
+.sempty{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:0 8px}
+.ph{width:64px;height:64px;border-radius:50%;border:1.6px solid #1d3b47;color:#3f6474;
+  display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.02)}
+.ph.off{border-color:rgba(255,77,94,.55);color:#ff92a0;box-shadow:0 0 20px rgba(255,77,94,.15);background:rgba(255,77,94,.04)}
+.ph.on{border-color:rgba(53,224,124,.6);color:var(--green);box-shadow:0 0 20px rgba(53,224,124,.18);background:rgba(53,224,124,.05)}
 .sempty .t{font-size:11px;letter-spacing:2px;color:var(--mut);font-weight:700}
+.sempty .t.off{color:#ff92a0}
+.sempty .t.on{color:#8dffc0}
+.sempty .s2{font-size:11px;color:#4d6b78;margin-top:-4px;max-width:180px}
 .addsrc{border:1px solid rgba(37,226,197,.6);color:var(--teal);font-weight:700;font-size:11px;letter-spacing:1.5px;
   padding:7px 13px;border-radius:8px;transition:.2s}
 .addsrc:hover{background:rgba(37,226,197,.12)}
-.tilewave{position:absolute;inset:0;width:100%;height:100%}
-.miccenter{position:relative;color:var(--teal);filter:drop-shadow(0 0 10px rgba(37,226,197,.6))}
-.miccenter svg{width:44px;height:44px}
+.addsrc.on{border-color:rgba(53,224,124,.65);color:#8dffc0}
+.addsrc.on:hover{background:rgba(53,224,124,.12)}
+
 #caption{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:9;max-width:90%;
   background:rgba(2,10,14,.85);border:1px solid rgba(37,226,197,.4);border-radius:9px;padding:8px 16px;
   font-weight:700;letter-spacing:1px;font-size:13.5px;color:#aef7ec;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#caption.off{color:#ff9aa5;border-color:rgba(255,77,94,.4)}
+#caption.off{color:#ff92a0;border-color:rgba(255,77,94,.45)}
 #caption.mute{color:#8fa9b3;border-color:var(--line)}
 
-/* menu */
 #popMenu{position:fixed;z-index:150;min-width:230px;background:#0a1a22;border:1px solid #17414d;border-radius:11px;
   box-shadow:0 18px 44px rgba(0,0,0,.6);padding:6px;display:none}
 #popMenu button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:9px 11px;border-radius:8px;
@@ -109,7 +121,6 @@ body.ready #app{opacity:1}
 #popMenu button:hover{background:rgba(37,226,197,.1)}
 #popMenu svg{width:15px;height:15px;color:var(--teal)}
 
-/* playback overlay */
 #playOverlay{position:absolute;inset:0;z-index:20;background:#010507;border-radius:12px;border:1px solid var(--line);display:none;flex-direction:column}
 #playOverlay.on{display:flex}
 #playOverlay .phead{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line)}
@@ -118,7 +129,6 @@ body.ready #app{opacity:1}
 #playOverlay .phead button{margin-left:auto;border:1px solid rgba(255,77,94,.5);color:#ff9aa5;font-weight:700;font-size:11px;letter-spacing:1.5px;padding:6px 12px;border-radius:8px}
 #playVideo{flex:1;width:100%;object-fit:contain;background:#000}
 
-/* player bar */
 .pbar{flex:none;display:flex;align-items:center;gap:9px;background:var(--p1);border:1px solid var(--line);border-radius:13px;padding:9px 12px}
 .rbtn{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#bfe4e0;background:rgba(255,255,255,.05);transition:.2s;flex:none}
 .rbtn:hover{background:rgba(255,255,255,.12)}
@@ -133,7 +143,6 @@ body.ready #app{opacity:1}
 .vol{-webkit-appearance:none;width:110px;height:4px;border-radius:99px;background:rgba(255,255,255,.15);cursor:pointer}
 .vol::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--teal);box-shadow:0 0 8px rgba(37,226,197,.8)}
 
-/* ===== SIDEBAR ===== */
 .side{width:322px;flex:none;border-left:1px solid var(--line);overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:11px;background:rgba(5,12,16,.6)}
 .card{background:var(--p1);border:1px solid var(--line);border-radius:13px;padding:13px}
 .card h3{font-size:11px;letter-spacing:3px;color:var(--mut);font-weight:700;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
@@ -180,7 +189,6 @@ body.ready #app{opacity:1}
 .cin input:focus{border-color:rgba(37,226,197,.6)}
 .csend{background:var(--teal);color:#03231e;font-weight:800;letter-spacing:1.5px;font-size:12.5px;padding:0 16px;border-radius:9px}
 
-/* ===== ACTION BAR ===== */
 .abar{flex:none;height:74px;display:flex;align-items:center;gap:12px;padding:0 16px;border-top:1px solid var(--line);background:rgba(5,13,17,.92)}
 .abtn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 16px;border-radius:12px;border:1.6px solid;font-weight:800;font-size:11px;letter-spacing:1.5px;transition:.2s}
 .abtn svg{width:17px;height:17px}
@@ -213,7 +221,6 @@ body.ready #app{opacity:1}
 </head>
 <body>
 
-<!-- LOADING 00.01% → 10.00% -->
 <div id="loading">
   <div class="lline t"></div><div class="lline b"></div>
   <div class="lcore">
@@ -225,7 +232,6 @@ body.ready #app{opacity:1}
 </div>
 
 <div id="app">
-  <!-- ============ TOPBAR ============ -->
   <header class="topbar">
     <div class="brand">
       <div class="brand-badge"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M8.6 15.4a5 5 0 0 1 0-6.8M15.4 8.6a5 5 0 0 1 0 6.8M5.8 18.2a9 9 0 0 1 0-12.4M18.2 5.8a9 9 0 0 1 0 12.4"/></svg></div>
@@ -242,7 +248,6 @@ body.ready #app{opacity:1}
   </header>
 
   <div class="main">
-    <!-- ============ STUDIO ============ -->
     <section class="studio">
       <div class="chrow">
         <div class="chchip"><span class="a">CH 01</span><span class="b">RUANG UTAMA</span></div>
@@ -250,34 +255,32 @@ body.ready #app{opacity:1}
         <span class="livebadge hidden" id="recDot"><i></i>REC</span>
         <div class="chmeta">
           <span>RES <b id="resVal">—</b></span><span>FPS <b id="fpsVal">—</b></span>
-          <span>UPTIME <b id="uptimeVal">00:00:00</b></span><span>TILES <b id="tilesVal">0/9</b></span>
+          <span>UPTIME <b id="uptimeVal">00:00:00</b></span><span>TILES <b id="tilesVal">3/9</b></span>
         </div>
       </div>
 
       <div class="gridwrap">
         <div class="grid" id="grid"></div>
-        <div id="caption" class="hidden"></div>
+        <div id="caption" class="off">⛔ SUBTITLE OFF</div>
         <div id="playOverlay">
           <div class="phead"><b>MODE PUTAR</b><span id="playTitle">rekaman.webm</span><button id="playClose">TUTUP ✕</button></div>
           <video id="playVideo" controls playsinline></video>
         </div>
       </div>
 
-      <!-- PLAYER BAR -->
       <div class="pbar">
-        <button class="rbtn" id="pbRestart" title="Reset uptime / mulai ulang"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></button>
+        <button class="rbtn" id="pbRestart" title="Reset uptime"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></button>
         <button class="rbtn main" id="pbPlay" title="Putar rekaman terakhir"><span id="iconPlay"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span><span id="iconPause" class="hidden"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></span></button>
-        <button class="rbtn" id="pbSpeed" title="Kecepatan putar (mode rekaman)" style="width:auto;border-radius:8px;padding:0 9px;font-weight:800;font-size:12px">1x</button>
-        <button class="rbtn" id="pbMute" title="Monitor publik: bisukan/nyalakan"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path id="volWave" d="M16.5 8.5a5 5 0 0 1 0 7"/></svg></button>
+        <button class="rbtn" id="pbSpeed" title="Kecepatan putar" style="width:auto;border-radius:8px;padding:0 9px;font-weight:800;font-size:12px">1x</button>
+        <button class="rbtn" id="pbMute" title="Monitor publik"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path id="volWave" d="M16.5 8.5a5 5 0 0 1 0 7"/></svg></button>
         <input type="range" class="vol" id="pbVol" min="0" max="100" value="60" title="Volume monitor publik">
         <div class="tl" id="pbTl"><div class="tlfill" id="pbFill"></div><div class="tlthumb" id="pbThumb"></div></div>
         <div class="ptime"><span id="pbCur">00:00:00</span> / <em id="pbRight">LIVE</em></div>
-        <button class="rbtn" id="pbGear" title="Pengaturan"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.5-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5a7 7 0 0 0 0 2.4l-2 1.5 2 3.5 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.06-.4.1-.8.1-1.2z"/></svg></button>
+        <button class="rbtn" id="pbGear" title="Nama host"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.5-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5a7 7 0 0 0 0 2.4l-2 1.5 2 3.5 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.06-.4.1-.8.1-1.2z"/></svg></button>
         <button class="rbtn" id="pbFs" title="Layar penuh"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
       </div>
     </section>
 
-    <!-- ============ SIDEBAR ============ -->
     <aside class="side">
       <div class="card">
         <div class="hostcard">
@@ -289,18 +292,15 @@ body.ready #app{opacity:1}
           <div class="hnum"><b>TOTAL LIVE</b><span id="totalLiveVal">0</span></div>
         </div>
       </div>
-
       <div class="card">
         <h3>PARTICIPANTS <span class="pcount" id="partCount">0</span></h3>
         <div id="partList"></div>
       </div>
-
       <div class="card">
         <h3>AUDIO VISUALIZER</h3>
         <canvas id="vu"></canvas>
         <div class="vunote" id="vuNote">TIDAK ADA SUMBER AUDIO</div>
       </div>
-
       <div class="card">
         <h3>ENGAGEMENT</h3>
         <div class="engrow">
@@ -309,7 +309,6 @@ body.ready #app{opacity:1}
         </div>
         <button class="subbtn" id="subBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span id="subLabel">SUBSCRIBE</span><span class="cnt" id="subVal">0</span></button>
       </div>
-
       <div class="card">
         <h3>LIVE CHAT</h3>
         <div class="chatbox" id="chatBox"></div>
@@ -321,12 +320,11 @@ body.ready #app{opacity:1}
     </aside>
   </div>
 
-  <!-- ============ ACTION BAR ============ -->
   <footer class="abar">
-    <button class="abtn off" id="tAudio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>AUDIO OFF</button>
-    <button class="abtn off" id="tVideo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.5 21 7.5v9l-5.5-3"/></svg>VIDEO OFF</button>
-    <button class="abtn off" id="tShare"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>SHARE OFF</button>
-    <button class="abtn off" id="tSub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M6 15h7M15 15h3M6 11h3M11 11h7" stroke-linecap="round"/></svg>SUBTITLE OFF</button>
+    <button class="abtn off" id="tAudio"></button>
+    <button class="abtn off" id="tVideo"></button>
+    <button class="abtn off" id="tShare"></button>
+    <button class="abtn off" id="tSub"></button>
 
     <div style="display:flex;align-items:center;gap:8px;margin:0 auto">
       <div class="segctl">
@@ -334,7 +332,7 @@ body.ready #app{opacity:1}
         <button id="segOnline">ONLINE</button>
         <button id="segLive" class="a-live">LIVE</button>
       </div>
-      <button class="autobtn" id="autoBtn" title="Siaran berkala otomatis: offline → online → live">AUTO</button>
+      <button class="autobtn" id="autoBtn" title="Siaran berkala otomatis">AUTO</button>
     </div>
 
     <div class="abright">
@@ -356,12 +354,27 @@ const pad=(n,l=2)=>String(n).padStart(l,'0');
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const fmtHMS=ms=>{ms=Math.max(0,ms);const s=Math.floor(ms/1000);return [Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(n=>pad(n)).join(':')};
-const fmtMS=ms=>{ms=Math.max(0,ms);return pad(Math.floor(ms/60000))+':'+pad(Math.floor(ms/1000)%60)};
 const fmtSize=b=>b>=1048576?(b/1048576).toFixed(1)+' MB':(b/1024).toFixed(0)+' KB';
 const fmtK=n=>n>=1000?(n/1000).toFixed(1)+'K':String(n);
 const stamp=()=>{const d=new Date();return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`};
 function toast(msg,kind='info',ms=3200){const t=document.createElement('div');t.className='toast '+kind;t.textContent=msg;
   $('#toasts').appendChild(t);setTimeout(()=>{t.classList.add('out');setTimeout(()=>t.remove(),350)},ms);}
+
+/* ================= IKON & GAMBAR PLACEHOLDER ================= */
+const ICONS={
+  mic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
+  micBig:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
+  cam:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.5 21 7.5v9l-5.5-3"/></svg>',
+  scr:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
+  camoff:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2 2l20 20"/><rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.5 21 7.5v9"/></svg>'
+};
+/* gambar placeholder besar per kondisi OFF (dicoret merah) */
+const PH={
+  user:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="8" r="3.4"/><path d="M3.5 20c.8-3.4 3.4-5 6.5-5s5.7 1.6 6.5 5"/><path d="M18.5 7v6M15.5 10h6"/></svg>',
+  micOff:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/><path d="M3 3l18 18" stroke="#ff4d5e" stroke-width="2"/></svg>',
+  camOff:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.5 21 7.5v9l-5.5-3"/><path d="M3 3l18 18" stroke="#ff4d5e" stroke-width="2"/></svg>',
+  scrOff:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><path d="M3 3l18 18" stroke="#ff4d5e" stroke-width="2"/></svg>'
+};
 
 /* ================= STATE ================= */
 const S={status:'offline',since:Date.now(),like:0,subs:4841,followers:4841,subscribed:false,totalLive:0,
@@ -378,13 +391,6 @@ const SRC={
   scr:{id:'scr',name:'Share 3',icon:'scr',letter:'S',color:'o',kind:'screen',stream:null,slot:3}
 };
 let audioCtx=null,analysers={},monGain=null;
-const ICONS={
-  mic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
-  cam:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.5 21 7.5v9l-5.5-3"/></svg>',
-  scr:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
-  user:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10" cy="8" r="3.4"/><path d="M3.5 20c.8-3.4 3.4-5 6.5-5s5.7 1.6 6.5 5"/><path d="M18.5 7v6M15.5 10h6"/></svg>',
-  camoff:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2 2l20 20"/><rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.5 21 7.5v9"/></svg>'
-};
 function ensureCtx(){audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();audioCtx.resume();}
 function addAnalyser(id,stream){
   ensureCtx();
@@ -395,8 +401,12 @@ function addAnalyser(id,stream){
 }
 function removeAnalyser(id){const a=analysers[id];if(a){try{a.src.disconnect()}catch(e){}delete analysers[id];}
   if(id==='mic'&&monGain){try{monGain.disconnect()}catch(e){}monGain=null;}}
-const mediaTracks=()=>[...(SRC.cam.stream?SRC.cam.stream.getVideoTracks():[]),...(SRC.scr.stream?SRC.scr.stream.getVideoTracks():[]),
-  ...(SRC.mic.stream?SRC.mic.stream.getAudioTracks():[]),...(SRC.scr.stream?SRC.scr.stream.getAudioTracks():[])];
+const mediaTracks=()=>[
+  ...(SRC.cam.stream?SRC.cam.stream.getVideoTracks():[]),
+  ...(SRC.scr.stream?SRC.scr.stream.getVideoTracks():[]),
+  ...(SRC.mic.stream?SRC.mic.stream.getAudioTracks():[]),
+  ...(SRC.scr.stream?SRC.scr.stream.getAudioTracks():[])
+];
 
 /* ================= AKTIF/NONAKTIF SUMBER ================= */
 async function setSource(id,on,slot){
@@ -407,64 +417,100 @@ async function setSource(id,on,slot){
       else if(id==='cam')src.stream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720}},audio:false});
       else src.stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
     }catch(e){toast('Akses '+(id==='scr'?'layar':'perangkat')+' ditolak: '+e.name,'warn');return false;}
-    const tracks=src.stream.getTracks();tracks.forEach(t=>t.onended=()=>setSource(id,false));
-    if(slot)assign(id,slot);else if(!slotOccupiedBy(src.slot,id))assign(id,firstFree()||src.slot);
+    src.stream.getTracks().forEach(t=>t.onended=()=>{if(SRC[id].stream)setSource(id,false);});
+    if(slot)assign(id,slot);
+    else if(!slotOccupiedBy(src.slot,id))assign(id,firstFree()||src.slot);
     if(src.stream.getAudioTracks().length)addAnalyser(id,src.stream);
     if(id==='mic'&&!S.monMuted)toast('Monitor publik aktif — gunakan headset agar tidak terjadi umpan balik.','info',4500);
     toast(src.name+' AKTIF','ok');
     chatAdd('System',src.name+' diaktifkan.',true);
   }else{
-    if(src.stream){src.stream.getTracks().forEach(t=>t.stop());src.stream=null;}
+    if(src.stream){const st=src.stream;src.stream=null;st.getTracks().forEach(t=>{t.onended=null;t.stop();});}
     removeAnalyser(id);
-    toast(src.name+' dimatikan','info',1800);
     if(recording)stopRecording();
+    toast(src.name+' dimatikan','info',1600);
+    chatAdd('System',src.name+' dimatikan.',true);
   }
   S.audio=!!SRC.mic.stream;S.video=!!SRC.cam.stream;S.share=!!SRC.scr.stream;
-  if(!mediaTracks().length&&meter)stopMeter();
-  else if(mediaTracks().length)startMeter();
-  renderAll();
+  if(mediaTracks().length)startMeter();else stopMeter();
+  save();renderAll();
   return true;
 }
-const toggleMic=async()=>{if(await setSource('mic',!SRC.mic.stream))S.audio=SRC.mic.stream,save0Render();};
-function save0Render(){save();renderAll();}
 
-/* ================= SLOT ================= */
-const slots={1:null,2:null,3:null,4:null,5:null,6:null,7:null,8:null,9:null};
+/* ================= SLOT (9 kotak) =================
+   Slot 1=Mic, 2=Kamera, 3=Share — PERMANEN.
+   Saat OFF, slotnya tetap menampilkan gambar placeholder OFF masing-masing. */
+const slots={1:'mic',2:'cam',3:'scr',4:null,5:null,6:null,7:null,8:null,9:null};
 function slotOccupiedBy(n,id){return slots[n]===id}
 function firstFree(){for(let i=1;i<=9;i++)if(!slots[i])return i;return null}
 function assign(id,slot){
   for(const k in slots)if(slots[k]===id)slots[k]=null;
-  const occ=slots[slot];
-  if(occ&&occ!==id){const f=firstFree();if(f)slots[f]=occ;}
   slots[slot]=id;
 }
+
+function badgeHTML(i){
+  const src=slots[i]?SRC[slots[i]]:null;
+  if(src&&src.stream)return `<span class="lv livebadge"><i></i>LIVE</span>`;
+  if(src)return `<span class="lv offbadge">OFF</span>`;
+  return '';
+}
+function footHTML(i){
+  const src=slots[i]?SRC[slots[i]]:null;
+  if(src&&src.stream)return `<span class="sfoot ${src.color}">${ICONS[src.icon]} ${src.name}</span>`;
+  if(src){
+    const L={mic:'MIC OFF',cam:'VIDEO OFF',scr:'SHARE OFF'}[src.id];
+    return `<span class="sfoot r">${ICONS.camoff} ${L}</span>`;
+  }
+  return `<span class="sfoot r">${ICONS.camoff} Kosong</span>`;
+}
+function centerHTML(i){
+  const src=slots[i]?SRC[slots[i]]:null;
+  if(src&&src.stream){
+    if(src.kind==='audio')return `<canvas class="tilewave"></canvas><div class="miccenter">${ICONS.micBig}</div>`;
+    return '';
+  }
+  if(src){
+    const M={
+      mic:['micOff','MIC OFF','Audio nonaktif — tekan tombol AUDIO di bawah'],
+      cam:['camOff','VIDEO OFF','Kamera nonaktif — tekan tombol VIDEO di bawah'],
+      scr:['scrOff','SHARE OFF','Layar nonaktif — tekan tombol SHARE di bawah']
+    }[src.id];
+    return `<div class="sempty"><div class="ph off">${PH[M[0]]}</div><div class="t off">${M[1]}</div>
+      <div class="s2">${M[2]}</div><button class="addsrc on" data-on="${src.id}">⚡ NYALAKAN</button></div>`;
+  }
+  return `<div class="sempty"><div class="ph">${PH.user}</div><div class="t">SLOT KOSONG</div>
+    <button class="addsrc" data-slot="${i}">+ TAMBAH SUMBER</button></div>`;
+}
+
 function renderSlots(){
   const g=$('#grid');g.innerHTML='';
   for(let i=1;i<=9;i++){
-    const id=slots[i],d=document.createElement('div');d.className='slot';
-    if(id&&SRC[id].stream){
-      const src=SRC[id];d.classList.add('active');
-      d.innerHTML=`<span class="slabel">SLOT ${pad(i)}</span><span class="lv livebadge"><i></i>LIVE</span>`;
+    const src=slots[i]?SRC[slots[i]]:null, live=src&&src.stream;
+    const d=document.createElement('div');
+    d.className='slot'+(live?' active':'');
+    /* 1) render overlay dulu (innerHTML), TANPA video di dalamnya */
+    d.innerHTML=`<span class="slabel">SLOT ${pad(i)}</span>${badgeHTML(i)}${centerHTML(i)}${footHTML(i)}`;
+    /* 2) baru sisipkan video/sec audio SETELAHNYA — insertAdjacentHTML tidak menghancurkan node */
+    if(live){
       if(src.kind==='audio'){
-        d.innerHTML+=`<div class="miccenter">${ICONS.mic}</div><canvas class="tilewave"></canvas>`;
+        /* tilewave sudah dibuat via centerHTML */
       }else{
-        const v=document.createElement('video');v.autoplay=true;v.muted=true;v.playsInline=true;
-        v.srcObject=src.stream;v.play().catch(()=>{});d.appendChild(v);
+        const v=document.createElement('video');
+        v.autoplay=true;v.muted=true;v.playsInline=true;
+        v.srcObject=src.stream;
+        v.play().catch(()=>{});
+        d.insertBefore(v,d.querySelector('.sfoot'));
         if(src.id==='cam')attachFps(v);
       }
-      d.innerHTML+=`<span class="sfoot ${src.color}">${ICONS[src.icon]} ${src.name}</span>`;
-    }else{
-      d.innerHTML=`<span class="slabel" style="left:10px;top:9px">SLOT ${pad(i)}</span>
-        <div class="sempty"><div class="ph">${ICONS.user}</div><div class="t">SLOT KOSONG</div>
-        <button class="addsrc" data-slot="${i}">+ TAMBAH SUMBER</button></div>
-        <span class="sfoot r">${ICONS.camoff} Kosong</span>`;
     }
     g.appendChild(d);
   }
-  $$('.addsrc').forEach(b=>b.onclick=e=>{e.stopPropagation();openSlotMenu(+b.dataset.slot,e.clientX,e.clientY);});
+  $$('#grid .addsrc[data-slot]').forEach(b=>b.onclick=e=>{e.stopPropagation();openSlotMenu(+b.dataset.slot,e.clientX,e.clientY);});
+  $$('#grid .addsrc[data-on]').forEach(b=>b.onclick=e=>{e.stopPropagation();setSource(b.dataset.on,true);});
   $('#tilesVal').textContent=Object.values(slots).filter(Boolean).length+'/9';
   updateResFps();
 }
+
 function openSlotMenu(slot,x,y){
   const m=$('#popMenu');m.innerHTML='';let any=false;
   Object.values(SRC).forEach(src=>{
@@ -485,24 +531,22 @@ const hideMenu=()=>{$('#popMenu').style.display='none'};
 document.addEventListener('click',e=>{if(!$('#popMenu').contains(e.target))hideMenu();});
 
 /* ================= FPS / RES ================= */
-let camVideoEl=null;
 function attachFps(v){
-  camVideoEl=v;S.fps=null;
+  S.fps=null;
   if(v.requestVideoFrameCallback){let last=performance.now(),n=0;
     const cb=now=>{n++;if(now-last>=1000){S.fps=n;n=0;last=now;}v.requestVideoFrameCallback(cb);};
     v.requestVideoFrameCallback(cb);}
 }
 function updateResFps(){
   let res='—';
-  const t=SRC.cam.stream?SRC.cam.stream.getVideoTracks()[0]:null;
-  const ts=SRC.scr.stream?SRC.scr.stream.getVideoTracks()[0]:null;
-  const st=(t||ts)?.getSettings();
+  const t=SRC.cam.stream?SRC.cam.stream.getVideoTracks()[0]:(SRC.scr.stream?SRC.scr.stream.getVideoTracks()[0]:null);
+  const st=t?t.getSettings():null;
   if(st&&st.width)res=st.width+'×'+st.height;
   $('#resVal').textContent=res;
-  $('#fpsVal').textContent=S.fps?(S.fps+''):(st&&st.frameRate?Math.round(st.frameRate)+'':'—');
+  $('#fpsVal').textContent=S.fps?String(S.fps):(st&&st.frameRate?Math.round(st.frameRate)+'':'—');
 }
 
-/* ================= STATUS HOST (MERAH/ORANYE/HIJAU) ================= */
+/* ================= STATUS HOST ================= */
 const META={
   offline:{label:'OFFLINE',h:'Sedang offline',c:'offline'},
   online:{label:'ONLINE',h:'Menyiapkan perangkat…',c:'online'},
@@ -527,7 +571,6 @@ function setStatus(st,quiet){
   renderAll();
 }
 function cycleStatus(){const o=['offline','online','live'];setStatus(o[(o.indexOf(S.status)+1)%3]);}
-/* siaran berkala */
 const SCH=[{s:'offline',ms:8000},{s:'online',ms:8000},{s:'live',ms:16000}];let berkT=null;
 function scheduleBerkala(adv){
   clearTimeout(berkT);if(!S.berkala)return;
@@ -551,22 +594,22 @@ function renderParts(){
   $('#partCount').textContent=act.length;
   $('#partList').innerHTML=act.length?act.map(s=>`
     <div class="pitem"><span class="pav ${s.color}">${s.letter}</span>
-      <div><div class="pname">${s.name}</div><div class="pslot">• Slot ${SRC[s.id].slot}</div></div>
+      <div><div class="pname">${s.name}</div><div class="pslot">• Slot ${s.slot}</div></div>
       <div class="picons">
         <span class="${s.stream.getAudioTracks().length?'on':'off'}">${ICONS.mic}</span>
         <span class="${s.stream.getVideoTracks().length?'on':'off'}">${ICONS.cam}</span>
       </div></div>`).join('')
-  :'<div style="font-size:12.5px;color:var(--mut);padding:8px 2px">Belum ada peserta. Aktifkan AUDIO / VIDEO / SHARE di bawah.</div>';
+  :'<div style="font-size:12.5px;color:var(--mut);padding:8px 2px">Belum ada peserta aktif. Nyalakan AUDIO / VIDEO / SHARE di bawah.</div>';
 }
 
-/* ================= VISUALIZER + VAD (NYATA) ================= */
+/* ================= VISUALIZER + VAD ================= */
 const vu=$('#vu'),vctx=vu.getContext('2d');
 function sizeCv(){const r=vu.getBoundingClientRect(),d=devicePixelRatio;vu.width=r.width*d;vu.height=r.height*d;}
-addEventListener('resize',()=>{sizeCv();});
-let rmsMax=0,dbDisp=-Infinity,lastSpeak=0;
+addEventListener('resize',sizeCv);
+let dbDisp=-Infinity,lastSpeak=0;
 function vizLoop(){
   requestAnimationFrame(vizLoop);
-  rmsMax=0;
+  let rmsMax=0;
   for(const id in analysers){
     const a=analysers[id];a.an.getByteTimeDomainData(a.buf);
     let s=0;for(let i=0;i<a.buf.length;i++){const v=(a.buf[i]-128)/128;s+=v*v;}
@@ -574,7 +617,7 @@ function vizLoop(){
   }
   if(rmsMax>1e-5)dbDisp=20*Math.log10(rmsMax);
   if(rmsMax>0.028)lastSpeak=performance.now();
-  drawVU();
+  drawVU(rmsMax);
   $$('.tilewave').forEach(cv=>{
     const c=cv.getContext('2d'),d=devicePixelRatio;
     if(cv.width!==cv.offsetWidth*d){cv.width=cv.offsetWidth*d;cv.height=cv.offsetHeight*d;}
@@ -589,8 +632,8 @@ function vizLoop(){
   });
   updateCaption();
 }
-function drawVU(){
-  const w=vu.width,h=vu.height,v=clamp(rmsMax*5,0,1);
+function drawVU(rms){
+  const w=vu.width,h=vu.height,v=clamp(rms*5,0,1);
   vctx.clearRect(0,0,w,h);
   const n=30,gap=3*devicePixelRatio,sw=(w-gap*(n-1))/n;
   for(let i=0;i<n;i++){
@@ -602,18 +645,23 @@ function drawVU(){
     ?'AUDIO AKTIF DARI '+Object.keys(analysers).length+' SUMBER — '+(dbDisp>-Infinity?dbDisp.toFixed(1):'-∞')+' dB'
     :'TIDAK ADA SUMBER AUDIO';
 }
-function updateCaption(){
+/* Caption/Subtitle: selalu menampilkan kondisinya */
+let lastCap='',lastCapCls='';
+function setCap(txt,cls){
   const c=$('#caption');
-  if(!S.sub){c.classList.add('hidden');return;}
-  c.classList.remove('hidden');
+  if(txt===lastCap&&cls===lastCapCls)return;
+  lastCap=txt;lastCapCls=cls;
+  c.className=cls;c.textContent=txt;
+}
+function updateCaption(){
+  if(!S.sub)return setCap('⛔ SUBTITLE OFF','off');
+  if(!Object.keys(analysers).length)return setCap('⏳ SUBTITLE AKTIF — MENUNGGU SUMBER AUDIO…','mute');
   const speaking=performance.now()-lastSpeak<450;
-  if(!Object.keys(analysers).length){c.className='';c.classList.add('mute');c.textContent='[ SUBTITLE AKTIF — TIDAK ADA SUMBER AUDIO ]';}
-  else if(speaking){c.className='';c.textContent='🔊 SUARA TERDETEKSI — '+(dbDisp>-Infinity?dbDisp.toFixed(1):'-∞')+' dB';}
-  else{c.className='';c.classList.add('mute');c.textContent='[ … ]';}
+  setCap(speaking?('🔊 SUARA TERDETEKSI — '+(dbDisp>-Infinity?dbDisp.toFixed(1):'-∞')+' dB'):'[ … ]',speaking?'':'mute');
 }
 
-/* ================= BITRATE METER (NYATA) ================= */
-let meter=null,meterBytes=0;
+/* ================= BITRATE METER ================= */
+let meter=null,meterBytes=0,meterInt=null;
 const MIMES=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','audio/webm'];
 function pickMime(){for(const m of MIMES){try{if(MediaRecorder.isTypeSupported(m))return m}catch(e){}}return''}
 function startMeter(){
@@ -623,16 +671,19 @@ function startMeter(){
   meterBytes=0;
   meter.ondataavailable=e=>{meterBytes+=e.data.size};
   meter.start(1000);
-  setInterval(()=>{if(!meter)return;S.bitrate=Math.round(meterBytes*8/1024);meterBytes=0;
+  meterInt=setInterval(()=>{if(!meter)return;S.bitrate=Math.round(meterBytes*8/1024);meterBytes=0;
     $('#bitrateVal').textContent=S.bitrate+' KBPS';},1000);
 }
-function stopMeter(){try{meter&&meter.stop()}catch(e){}meter=null;S.bitrate=0;$('#bitrateVal').textContent='0 KBPS';}
+function stopMeter(){try{meter&&meter.stop()}catch(e){}meter=null;
+  if(meterInt){clearInterval(meterInt);meterInt=null;}
+  S.bitrate=0;$('#bitrateVal').textContent='0 KBPS';}
 
-/* ================= REKAMAN + UNDUH + UNGGAH ================= */
+/* ================= REKAMAN ================= */
 let rec=null,recChunks=[],recording=false,recStart=0,lastBlob=null,lastURL=null,lastName='';
+function stopRecording(){if(recording){try{rec.stop()}catch(e){}}}
  $('#recBtn').onclick=()=>{
   const tracks=mediaTracks();
-  if(recording){try{rec.stop()}catch(e){}return;}
+  if(recording){stopRecording();return;}
   if(!tracks.length)return toast('Nyalakan AUDIO / VIDEO / SHARE dulu','warn');
   try{rec=new MediaRecorder(new MediaStream(tracks),{mimeType:pickMime()})}
   catch(e){return toast('MediaRecorder gagal: '+e.message,'warn')}
@@ -658,7 +709,7 @@ function uploadRec(){
   if(!lastBlob||!S.server)return;
   const fd=new FormData();fd.append('file',lastBlob,lastName);
   fetch('api/upload',{method:'POST',body:fd}).then(r=>r.json())
-    .then(j=>{if(j.ok){chatAdd('System','Rekaman diunggah ke server — publik dapat mengunduh: /recordings/'+j.name,true);}})
+    .then(j=>{if(j.ok)chatAdd('System','Rekaman diunggah — publik dapat mengunduh: /recordings/'+j.name,true);})
     .catch(()=>{});
 }
  $('#dlBtn').onclick=()=>{
@@ -705,41 +756,40 @@ function closePlay(){playOpen=false;$('#playOverlay').classList.remove('on');
   $('#volWave').style.opacity=S.monMuted?0:1;
   toast(S.monMuted?'Monitor publik dibisukan':'Monitor publik aktif — volume '+Math.round(S.monVol*100)+'%','info',1800);
 };
- $('#pbVol').oninput=e=>{
-  S.monVol=e.target.value/100;
-  if(monGain&&!S.monMuted)monGain.gain.value=S.monVol;
-};
+ $('#pbVol').oninput=e=>{S.monVol=e.target.value/100;if(monGain&&!S.monMuted)monGain.gain.value=S.monVol;};
  $('#pbVol').onclick=e=>e.stopPropagation();
- $('#pbRestart').onclick=()=>{
-  if(playOpen){$('#playVideo').currentTime=0;return;}
-  S.since=Date.now();toast('Uptime direset','info',1600);
-};
+ $('#pbRestart').onclick=()=>{if(playOpen){$('#playVideo').currentTime=0;return;}S.since=Date.now();toast('Uptime direset','info',1600);};
  $('#pbGear').onclick=()=>{
   const n=prompt('Nama host:',S.name);
-  if(n&&n.trim()){S.name=n.trim();$('#hostName').textContent=S.name;save();toast('Nama host diganti: '+S.name,'ok');}
+  if(n&&n.trim()){S.name=n.trim();$('#hostName').textContent=S.name;save();toast('Nama host: '+S.name,'ok');}
 };
  $('#pbFs').onclick=()=>{document.fullscreenElement?document.exitFullscreen():document.querySelector('.studio').requestFullscreen&&document.querySelector('.studio').requestFullscreen();};
 
 /* ================= TOGGLE BAR BAWAH ================= */
+const ABTN={
+  audio:{icon:ICONS.mic,on:'AUDIO ON',off:'AUDIO OFF'},
+  video:{icon:ICONS.cam,on:'VIDEO ON',off:'VIDEO OFF'},
+  share:{icon:ICONS.scr,on:'SHARE ON',off:'SHARE OFF'},
+  sub:{icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M6 15h7M15 15h3M6 11h3M11 11h7" stroke-linecap="round"/></svg>',on:'SUBTITLE ON',off:'SUBTITLE OFF'}
+};
 function paintToggles(){
-  const set=(el,on,labOn,labOff)=>{el.className='abtn '+(on?'on':'off');el.innerHTML=el.dataset.icon+(on?labOn:labOff);};
-  set($('#tAudio'),S.audio,'AUDIO ON','AUDIO OFF');
-  set($('#tVideo'),S.video,'VIDEO ON','VIDEO OFF');
-  set($('#tShare'),S.share,'SHARE ON','SHARE OFF');
-  set($('#tSub'),S.sub,'SUBTITLE ON','SUBTITLE OFF');
+  const set=(el,cfg,on)=>{el.className='abtn '+(on?'on':'off');el.innerHTML=cfg.icon+'<span>'+(on?cfg.on:cfg.off)+'</span>';};
+  set($('#tAudio'),ABTN.audio,S.audio);
+  set($('#tVideo'),ABTN.video,S.video);
+  set($('#tShare'),ABTN.share,S.share);
+  set($('#tSub'),ABTN.sub,S.sub);
 }
- $('#tAudio').onclick=async()=>{if(await setSource('mic',!SRC.mic.stream)){paintToggles();renderAll();}};
- $('#tVideo').onclick=async()=>{if(await setSource('cam',!SRC.cam.stream)){paintToggles();renderAll();}};
- $('#tShare').onclick=async()=>{if(await setSource('scr',!SRC.scr.stream)){paintToggles();renderAll();}};
- $('#tSub').onclick=()=>{S.sub=!S.sub;paintToggles();};
- $('#tAudio').dataset.icon=ICONS.mic;$('#tVideo').dataset.icon=ICONS.cam;
- $('#tShare').dataset.icon=ICONS.scr;$('#tSub').dataset.icon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M6 15h7M15 15h3M6 11h3M11 11h7" stroke-linecap="round"/></svg>';
+ $('#tAudio').onclick=()=>setSource('mic',!SRC.mic.stream);
+ $('#tVideo').onclick=()=>setSource('cam',!SRC.cam.stream);
+ $('#tShare').onclick=()=>setSource('scr',!SRC.scr.stream);
+ $('#tSub').onclick=()=>{S.sub=!S.sub;paintToggles();updateCaption();
+  toast(S.sub?'Subtitle ON — deteksi suara tampil':'Subtitle OFF','info',1600);};
 
  $('#exitBtn').onclick=()=>{
   if(!confirm('Keluar dari studio? Semua sumber & perekaman akan dihentikan.'))return;
-  Object.values(SRC).forEach(s=>s.stream&&s.stream.getTracks().forEach(t=>t.stop()));
-  if(recording)try{rec.stop()}catch(e){}
-  setStatus('offline',true);stopMeter();
+  Object.values(SRC).forEach(s=>{if(s.stream){const st=s.stream;s.stream=null;st.getTracks().forEach(t=>{t.onended=null;t.stop();});}});
+  stopRecording();stopMeter();
+  setStatus('offline',true);
   toast('Anda telah keluar dari studio. Memuat ulang…','warn');
   setTimeout(()=>location.reload(),1200);
 };
@@ -747,9 +797,8 @@ function paintToggles(){
 /* ================= ENGAGEMENT ================= */
  $('#likeBtn').onclick=()=>{S.like++;$('#likeVal').textContent=S.like;save();};
  $('#shareBtn').onclick=async()=>{
-  const data={title:'RUANG SIARAN',text:'Tonton siaran saya di Ruang Siaran!',url:location.href};
-  try{if(navigator.share)await navigator.share(data);else{await navigator.clipboard.writeText(location.href);toast('Tautan siaran disalin','ok');}}
-  catch(e){}
+  try{if(navigator.share)await navigator.share({title:'RUANG SIARAN',text:'Tonton siaran saya!',url:location.href});
+  else{await navigator.clipboard.writeText(location.href);toast('Tautan disalin','ok');}}catch(e){}
 };
 function paintSub(){
   $('#subBtn').classList.toggle('on',S.subscribed);
@@ -761,28 +810,24 @@ function paintSub(){
   S.subscribed=!S.subscribed;
   S.subs+=S.subscribed?1:-1;S.followers+=S.subscribed?1:-1;
   paintSub();save();
-  toast(S.subscribed?'Terima kasih sudah subscribe! 🎉':'Subscribe dibatalkan','info',2000);
+  toast(S.subscribed?'Terima kasih sudah subscribe!':'Subscribe dibatalkan','info',2000);
 };
 
 /* ================= CHAT ================= */
-let chatLast=0,chatTimer=null;
+const esc=t=>String(t).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+const localChat=[{id:1,name:'System',text:'Selamat datang di studio siaran.'}];let localId=1,chatLast=0;
 function renderChat(items){
   $('#chatBox').innerHTML=items.slice(-60).map(m=>{
     const cls=m.name==='System'?'sys':(m.name===S.name?'me':'oth');
     return `<div class="cmsg"><b class="${cls}">${esc(m.name)}</b><span>${esc(m.text)}</span></div>`;
-  }).join('')||'<div class="cmsg"><b class="sys">System</b><span>Selamat datang di studio siaran.</span></div>';
+  }).join('');
   $('#chatBox').scrollTop=1e9;
 }
-const esc=t=>String(t).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
-async function chatAdd(name,text,sys){
+async function chatAdd(name,text){
   if(S.server){try{await fetch('api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,text})});}catch(e){}}
   else{localChat.push({id:++localId,name,text});renderChat(localChat);}
 }
-const localChat=[{id:1,name:'System',text:'Selamat datang di studio siaran.'}];let localId=1;
-function sendChat(){
-  const v=$('#chatInput').value.trim();if(!v)return;
-  $('#chatInput').value='';chatAdd(S.name,v);
-}
+function sendChat(){const v=$('#chatInput').value.trim();if(!v)return;$('#chatInput').value='';chatAdd(S.name,v);}
  $('#chatSend').onclick=sendChat;
  $('#chatInput').addEventListener('keydown',e=>{if(e.key==='Enter')sendChat();});
 async function pollChat(){
@@ -792,11 +837,9 @@ async function pollChat(){
   }catch(e){}
 }
 
-/* ================= SERVER PYTHON ================= */
+/* ================= SERVER ================= */
 const clientId=Math.random().toString(36).slice(2);
-async function detectServer(){
-  try{const r=await fetch('api/health',{cache:'no-store'});return r.ok}catch(e){}return false;
-}
+async function detectServer(){try{const r=await fetch('api/health',{cache:'no-store'});return r.ok}catch(e){}return false;}
 async function postStatus(){try{await fetch('api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:S.status})})}catch(e){}}
 async function heartbeat(){
   if(!S.server){$('#viewersVal').textContent='1';return;}
@@ -822,7 +865,7 @@ setInterval(()=>{
 setInterval(heartbeat,3000);
 setInterval(pollChat,2500);
 
-/* ================= LOADING 00.01% → 10.00% (LANGKAH NYATA) ================= */
+/* ================= LOADING 00.01% → 10.00% ================= */
 const SEG=16,segs=[];for(let i=0;i<SEG;i++){const s=document.createElement('div');s.className='seg';$('#loadBar').appendChild(s);segs.push(s);}
 let pct=0;
 function renderPct(){$('#loadPct').textContent=pct.toFixed(2).padStart(5,'0')+'%';
@@ -856,7 +899,6 @@ async function boot(){
   setStatus(S.status,true);
   $('#hostName').textContent=S.name;
   $('#pbVol').value=Math.round(S.monVol*100);
-  $('#monMuted')&&0;
   chatAdd('System','Studio siap. Status host: '+META[S.status].label+'.',true);
   if(S.server)toast('Server Python terhubung — viewers & chat tersinkron','ok',4000);
   else toast('Mode lokal — jalankan server.py untuk sinkronisasi publik','info',4000);
