@@ -1,6 +1,6 @@
 """
 RUANG SIARAN — Server Python (Flask)
-pip install flask  →  python server.py  →  buka http://localhost:5000
+pip install flask  →  python server.py  →  buka https://indonesiamajukaribmu.github.io/Room-Meeting/
 
 Peserta: setiap browser yang membuka halaman ini otomatis terdaftar via
 /api/join + /api/heartbeat, dan muncul di panel PARTICIPANTS semua pengunjung.
