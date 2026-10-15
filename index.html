@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>RUANG SIARAN — Live Broadcast • CODE 207446</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Rajdhani:wght@400;500;600;700&display=swap');
 :root{
@@ -21,7 +22,6 @@ svg{display:block}
 ::-webkit-scrollbar{width:8px;height:8px}
 ::-webkit-scrollbar-thumb{background:#12303c;border-radius:99px}
 
-/* ===== LOADING ===== */
 #loading{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;
   background:radial-gradient(1000px 520px at 50% 42%,#07242c 0%,#03141b 50%,#01080c 100%);transition:opacity .7s}
 #loading.done{opacity:0;pointer-events:none}
@@ -40,22 +40,23 @@ svg{display:block}
 #loadPct{font-family:'Orbitron';font-weight:700;font-size:30px;color:var(--teal);letter-spacing:2px;text-shadow:0 0 20px rgba(37,226,197,.7)}
 #loadStep{font-size:13px;color:#87b3ba;letter-spacing:2px;text-transform:uppercase}
 
-/* ===== GERBANG ===== */
 #gate{position:fixed;inset:0;z-index:280;display:flex;align-items:center;justify-content:center;
   background:rgba(2,8,12,.82);backdrop-filter:blur(8px)}
-.gcard{width:min(430px,92vw);background:var(--p1);border:1px solid #17414d;border-radius:18px;
+.gcard{width:min(440px,92vw);background:var(--p1);border:1px solid #17414d;border-radius:18px;
   padding:30px 28px;box-shadow:0 30px 80px rgba(0,0,0,.7),0 0 40px rgba(37,226,197,.08);text-align:center}
 .glogo{width:58px;height:58px;border-radius:16px;background:var(--teal);color:#03231e;margin:0 auto 14px;
   display:flex;align-items:center;justify-content:center;box-shadow:0 0 24px rgba(37,226,197,.5)}
 .gcard h2{font-family:'Orbitron';font-size:19px;letter-spacing:4px}
-.gcard .sub{font-size:11px;letter-spacing:3px;color:var(--mut);margin:6px 0 22px}
+.gcard .sub{font-size:11px;letter-spacing:3px;color:var(--mut);margin:6px 0 20px}
 .gbtn2{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;height:54px;border-radius:12px;
   font-weight:800;font-size:14px;letter-spacing:2px;transition:.2s;border:1.6px solid;
   color:#8feee2;border-color:rgba(37,226,197,.55);background:rgba(37,226,197,.06)}
 .gbtn2:hover{background:rgba(37,226,197,.14)}
-.gnote{margin-top:14px;font-size:11.5px;color:var(--mut);letter-spacing:1px;line-height:1.7}
+.gnote{margin-top:14px;font-size:11.5px;color:var(--mut);letter-spacing:.5px;line-height:1.75}
 .gnote b{color:#bfe9e5}
-.gcode{margin-top:12px;font-size:12px;letter-spacing:2px;color:var(--mut)}
+.gsite{margin-top:10px;font-size:11.5px;color:#8feee2;letter-spacing:.5px;word-break:break-all}
+.gsite b{font-family:'Orbitron';font-size:11px;letter-spacing:1px;color:var(--teal)}
+.gcode{margin-top:10px;font-size:12px;letter-spacing:2px;color:var(--mut)}
 .gcode b{font-family:'Orbitron';color:var(--teal);letter-spacing:4px}
 
 #joinModal{position:fixed;inset:0;z-index:290;display:flex;align-items:center;justify-content:center;
@@ -78,7 +79,6 @@ svg{display:block}
 .jdots i{width:8px;height:8px;border-radius:50%;background:#173242}
 .jdots i.a{background:var(--teal);box-shadow:0 0 8px var(--teal)}
 
-/* ===== LAYOUT ===== */
 #app{opacity:0;transition:opacity .6s;height:100vh;display:flex;flex-direction:column}
 body.ready #app{opacity:1}
 .topbar{height:58px;flex:none;display:flex;align-items:center;gap:22px;padding:0 18px;border-bottom:1px solid var(--line);background:rgba(5,13,17,.9)}
@@ -148,7 +148,8 @@ body.ready #app{opacity:1}
 .ph svg{width:22px;height:22px}
 .sempty .t{font-size:10px;letter-spacing:2px;color:var(--mut);font-weight:700}
 .sempty .t.off{color:#ff92a0}
-.sempty .s2{font-size:10px;color:#4d6b78;max-width:180px}
+.sempty .s2{font-size:10px;color:#4d6b78;max-width:190px;line-height:1.5}
+.sempty .s2 b{color:#8feee2}
 .addsrc{border:1px solid rgba(37,226,197,.6);color:var(--teal);font-weight:700;font-size:10.5px;letter-spacing:1.5px;
   padding:6px 12px;border-radius:8px;transition:.2s}
 .addsrc:hover{background:rgba(37,226,197,.12)}
@@ -174,9 +175,7 @@ body.ready #app{opacity:1}
 #playOverlay .phead span{font-size:12px;color:var(--mut)}
 .pmini{border:1px solid rgba(37,226,197,.5);color:#8feee2;font-weight:800;font-size:10.5px;letter-spacing:1.5px;padding:5px 10px;border-radius:7px}
 .pmini:hover{background:rgba(37,226,197,.12)}
-#playOverlay .phead button{margin-left:auto}
-#playOverlay .phead .pmini{margin-left:0}
-#playClose{border:1px solid rgba(255,77,94,.5);color:#ff9aa5;font-weight:700;font-size:11px;letter-spacing:1.5px;padding:6px 12px;border-radius:8px}
+#playClose{margin-left:auto;border:1px solid rgba(255,77,94,.5);color:#ff9aa5;font-weight:700;font-size:11px;letter-spacing:1.5px;padding:6px 12px;border-radius:8px}
 #playVideo{flex:1;width:100%;object-fit:contain;background:#000}
 #playNote{text-align:center;font-size:11px;letter-spacing:2px;color:var(--mut);padding:6px;font-weight:700}
 
@@ -206,6 +205,7 @@ body.ready #app{opacity:1}
 .hnum b{display:block;font-size:10px;letter-spacing:2px;color:var(--mut)}
 .hnum span{font-family:'Orbitron';font-size:15px;color:#eafffb}
 .pcount{background:var(--teal);color:#03231e;border-radius:7px;padding:2px 9px;font-weight:800;font-size:11.5px}
+.netbadge{background:#12303c;color:#8feee2;border:1px solid #17414d;border-radius:7px;padding:2px 8px;font-size:9px;font-weight:800;letter-spacing:1.5px}
 .miniIc{width:24px;height:24px;border-radius:7px;border:1px solid var(--line);color:#9fd8d1;
   display:flex;align-items:center;justify-content:center;transition:.2s}
 .miniIc:hover{border-color:rgba(37,226,197,.6);color:var(--teal)}
@@ -274,7 +274,6 @@ body.ready #app{opacity:1}
 </head>
 <body>
 
-<!-- LOADING 00.01% → 10.00% -->
 <div id="loading">
   <div class="lline t"></div><div class="lline b"></div>
   <div class="lcore">
@@ -285,20 +284,20 @@ body.ready #app{opacity:1}
   </div>
 </div>
 
-<!-- GERBANG -->
 <div id="gate" class="hidden">
   <div class="gcard">
     <div class="glogo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M8.6 15.4a5 5 0 0 1 0-6.8M15.4 8.6a5 5 0 0 1 0 6.8M5.8 18.2a9 9 0 0 1 0-12.4M18.2 5.8a9 9 0 0 1 0 12.4"/></svg></div>
     <h2>RUANG SIARAN</h2>
     <div class="sub">SIARAN LANGSUNG • LIVE MEET</div>
     <button class="gbtn2" id="gateJoin">👥 GABUNG SIARAN — SEBAGAI PESERTA</button>
-    <div class="gnote">Setelah mengisi <b>username</b> + <b>code ruangan</b>, siaran langsung <b>OTOMATIS MENYALA HIJAU</b> (HOST LIVE).<br>
-      Tinggal aktifkan: <b>AUDIO • VIDEO • SHARE • SUBTITLE</b> lalu <b>RECORD</b> — rekaman diputar otomatis.</div>
+    <div class="gnote">Setelah <b>username</b> + <b>code ruangan</b>: siaran <b>OTOMATIS LIVE</b> (hijau).<br>
+      Peserta lain yang gabung akan <b>muncul di slot 4–12</b> dengan status<br>
+      <b>Mic • Video • Share</b> mereka — tinggal diaktifkan satu per satu.</div>
+    <div class="gsite"><b>WEBSITE:</b><br>indonesiamajukaribmu.github.io/Room-Meeting</div>
     <div class="gcode">CODE RUANGAN SIARAN LIVE: <b>207446</b></div>
   </div>
 </div>
 
-<!-- MODAL JOIN: USERNAME → CODE -->
 <div id="joinModal" class="hidden">
   <div class="jcard">
     <div class="jdots"><i class="a" id="jd1"></i><i id="jd2"></i></div>
@@ -339,7 +338,7 @@ body.ready #app{opacity:1}
     <section class="studio">
       <div class="chrow">
         <div class="chchip"><span class="a">CH 01</span><span class="b">RUANG UTAMA</span></div>
-        <button class="codechip" id="codeChip" title="Klik untuk menyalin code"><small>CODE</small><b>207446</b></button>
+        <button class="codechip" id="codeChip" title="Klik untuk menyalin code + alamat website"><small>CODE</small><b>207446</b></button>
         <span class="livebadge" id="chLive"><i></i>LIVE</span>
         <span class="livebadge hidden" id="recDot"><i></i>REC</span>
         <div class="chmeta">
@@ -354,8 +353,8 @@ body.ready #app{opacity:1}
         <div id="playOverlay">
           <div class="phead">
             <b>MODE PUTAR</b><span id="playTitle">rekaman.webm</span>
-            <button class="pmini" id="pbFirst" title="Putar rekaman pertama">◀ AWAL</button>
-            <button class="pmini" id="pbLast" title="Putar rekaman terakhir">TERAKHIR ▶</button>
+            <button class="pmini" id="pbFirst">◀ AWAL</button>
+            <button class="pmini" id="pbLast">TERAKHIR ▶</button>
             <button id="playClose">TUTUP ✕</button>
           </div>
           <video id="playVideo" controls playsinline></video>
@@ -390,6 +389,7 @@ body.ready #app{opacity:1}
       <div class="card">
         <h3>PARTICIPANTS
           <span style="display:flex;gap:6px;align-items:center">
+            <span class="netbadge" id="netBadge">…</span>
             <span class="pcount" id="partCount">0</span>
             <button class="miniIc" id="partReload" title="Reload participants — pindai peserta nyata"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg></button>
           </span>
@@ -456,7 +456,6 @@ const esc=t=>String(t).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;',
 function toast(msg,kind='info',ms=3200){const t=document.createElement('div');t.className='toast '+kind;t.textContent=msg;
   $('#toasts').appendChild(t);setTimeout(()=>{t.classList.add('out');setTimeout(()=>t.remove(),350)},ms);}
 
-/* ================= IKON & PLACEHOLDER ================= */
 const ICONS={
   mic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
   micBig:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
@@ -472,7 +471,8 @@ const PH={
 };
 
 /* ================= STATE ================= */
-const JOIN_CODE='207446';   /* CODE RUANGAN — TETAP */
+const JOIN_CODE='207446';
+const SITE_URL='https://indonesiamajukaribmu.github.io/Room-Meeting/';
 const S={live:false,since:Date.now(),liveStart:null,like:0,subs:4841,followers:4841,subscribed:false,totalLive:0,
   name:'Host',server:false,viewers:1,bitrate:0,fps:null,
   audio:false,video:false,share:false,sub:false,monMuted:false,monVol:.6,speedIdx:1,joined:false};
@@ -526,14 +526,14 @@ async function setSource(id,on){
   }
   S.audio=!!SRC.mic.stream;S.video=!!SRC.cam.stream;S.share=!!SRC.scr.stream;
   if(mediaTracks().length)startMeter();else stopMeter();
-  save();renderAll();
+  save();sendState();renderAll();
   return true;
 }
 
-/* ================= PESERTA NYATA (via server) ================= */
+/* ================= PESERTA NYATA ================= */
 const clientId=Math.random().toString(36).slice(2,10);
-const PARTS=new Map();
-const FRAMES=new Map();
+const PARTS=new Map();     /* peserta lain (tampil di slot 4-12) */
+const FRAMES=new Map();    /* "id|key" -> dataURL */
 const firstFreePart=()=>{const used=new Set([...PARTS.values()].map(p=>p.slot));for(let i=4;i<=12;i++)if(!used.has(i))return i;return null};
 const partAtSlot=i=>[...PARTS.values()].find(p=>p.slot===i);
 
@@ -569,7 +569,7 @@ function partTile(i,p){
 function emptyPartTile(i){
   return{inner:`<span class="slabel">SLOT ${pad(i)}</span>
     <div class="sempty"><div class="ph">${PH.user}</div><div class="t">MENUNGGU PESERTA</div>
-    <div class="s2">Isi username + code ruangan ${JOIN_CODE} untuk mengisi slot ini</div></div>
+    <div class="s2">Gabung: <b>indonesiamajukaribmu.github.io/Room-Meeting</b><br>username + code <b>${JOIN_CODE}</b></div></div>
     <span class="sfoot r">${ICONS.camoff} Kosong</span>`,cls:''};
 }
 function renderSlots(){
@@ -604,12 +604,12 @@ function updateFrames(){
   }
 }
 
-/* ================= STATUS: OTOMATIS LIVE SAAT GABUNG ================= */
-function setLive(on,quiet,fromServer){
+/* ================= STATUS LIVE ================= */
+function setLive(on,quiet,fromNet){
   const was=S.live;
   S.live=on;
   if(on&&!was){
-    if(!fromServer||!S.liveStart)S.since=Date.now();
+    if(!S.liveStart)S.liveStart=Date.now();
     S.totalLive++;save();
   }
   $('#liveBtn').classList.toggle('on',on);
@@ -620,14 +620,18 @@ function setLive(on,quiet,fromServer){
   $('#hostStatus').textContent=on?'Sedang siaran langsung':'Belum siaran';
   $('#hostStatus').className='hstat'+(on?' live':'');
   $('#chLive').classList.toggle('hidden',!on);
-  if(on&&!was)chatAdd('System','SIARAN LANGSUNG DIMULAI — status hijau menyala, publik dapat mendengarkan.');
-  if(!on&&was)chatAdd('System','Siaran langsung berakhir.');
-  if(!quiet&&!fromServer&&S.server)postStatus();
+  if(on&&!was)chatAdd('System','SIARAN LANGSUNG DIMULAI — status hijau menyala.');
+  if(!quiet&&!fromNet&&S.server)postStatus();
+  if(netMode==='peer'&&isHub)hubBroadcast();
+  if(netMode==='bc')bcPost({kind:'live',on,liveStart:S.liveStart});
   renderAll();
 }
  $('#liveBtn').onclick=()=>setLive(!S.live);
  $('#hostPill').onclick=()=>setLive(!S.live);
- $('#codeChip').onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(JOIN_CODE);toast('Code ruangan '+JOIN_CODE+' disalin','ok');};
+ $('#codeChip').onclick=()=>{
+  navigator.clipboard&&navigator.clipboard.writeText(SITE_URL+' — CODE: '+JOIN_CODE);
+  toast('Alamat website + code disalin','ok');
+};
 
 /* ================= FPS / RES ================= */
 function attachFps(v){
@@ -650,7 +654,7 @@ function renderParts(){
   const rows=[];
   if(S.joined)Object.values(SRC).forEach(s=>{if(s.stream)rows.push({name:s.name,tag:'SAYA',color:s.color,letter:s.letter,mic:s.stream.getAudioTracks().length,cam:s.stream.getVideoTracks().length,st:'Anda — menyiarkan'})});
   PARTS.forEach(p=>rows.push({name:p.name,tag:'PESERTA',color:'o',letter:(p.name[0]||'?').toUpperCase(),
-    mic:!!p.mic,cam:!!p.cam,st:'Slot '+p.slot+' — terhubung'}));
+    mic:!!p.mic,cam:!!p.cam,st:'Slot '+p.slot+(p.cam?' — video on':p.share?' — share on':' — menunggu aktifkan AV')}));
   $('#partCount').textContent=rows.length;
   $('#partList').innerHTML=rows.length?rows.map(r=>`
     <div class="pitem"><span class="pav ${r.color}">${r.letter}</span>
@@ -661,14 +665,19 @@ function renderParts(){
         <span class="${r.cam?'on':'off'}">${ICONS.cam}</span>
         <span class="cc ${S.sub?'on':'off'}">CC</span>
       </div></div>`).join('')
-  :`<div class="pempty">Menunggu peserta…<br>Bagikan <b>code ruangan ${JOIN_CODE}</b> — peserta isi username lalu langsung gabung otomatis ke slot. Tekan reload untuk memindai:</div>
+  :`<div class="pempty">Menunggu peserta…<br>Bagikan alamat <b>${SITE_URL.replace('https://','')}</b> + <b>code ${JOIN_CODE}</b>.<br>Peserta yang gabung otomatis muncul di slot 4–12 (P2P). Tekan reload untuk pindai ulang:</div>
     <button class="addsrc" id="partReload2" style="margin-top:8px">⟳ RELOAD PARTICIPANTS</button>`;
   const b2=$('#partReload2');if(b2)b2.onclick=reloadParticipants;
 }
 async function reloadParticipants(){
-  if(S.server){await heartbeat(true);
-    toast('Participants dimuat ulang — '+PARTS.size+' peserta nyata terdeteksi','ok');}
-  else toast('Server belum berjalan — jalankan server.py agar peserta dapat gabung dengan code','warn',4000);
+  if(netMode==='server'){await hbServer(true);toast('Participants dimuat ulang — '+PARTS.size+' peserta','ok');}
+  else if(netMode==='peer'){
+    if(isHub){hubBroadcast();toast('Roster disiarkan ulang — '+HUBPARTS.size+' peserta di ruangan','ok');}
+    else if(hubConn&&hubConn.open){hubConn.send({type:'hello',id:clientId,name:S.name});sendState();toast('Hello dikirim ulang ke ruangan','ok');}
+    else{toast('Koneksi ruangan hilang — menyambung ulang…','warn');peerRetry();}
+  }
+  else if(netMode==='bc'){bcPost({kind:'hb',id:clientId,name:S.name,mic:!!SRC.mic.stream,cam:!!SRC.cam.stream,share:!!SRC.scr.stream,t:Date.now()});toast('Pindai tab selesai — '+PARTS.size+' peserta','ok');}
+  else toast('Jaringan belum siap','warn');
   renderAll();
 }
  $('#partReload').onclick=reloadParticipants;
@@ -724,7 +733,7 @@ function updateCaption(){
   setCap(speaking?('🔊 SUARA TERDETEKSI — '+(dbDisp>-Infinity?dbDisp.toFixed(1):'-∞')+' dB'):'[ … ]',speaking?'':'mute');
 }
 
-/* ================= BITRATE METER ================= */
+/* ================= BITRATE ================= */
 let meter=null,meterBytes=0,meterInt=null;
 const MIMES=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','audio/webm'];
 function pickMime(){for(const m of MIMES){try{if(MediaRecorder.isTypeSupported(m))return m}catch(e){}}return''}
@@ -740,9 +749,9 @@ function stopMeter(){try{meter&&meter.stop()}catch(e){}meter=null;
   if(meterInt){clearInterval(meterInt);meterInt=null;}
   S.bitrate=0;$('#bitrateVal').textContent='0 KBPS';}
 
-/* ================= REKAMAN + PUTAR OTOMATIS (AWAL & TERAKHIR) ================= */
+/* ================= REKAMAN + PUTAR OTOMATIS ================= */
 let rec=null,recChunks=[],recording=false,recStart=0;
-const recHistory=[];   /* semua rekaman sesi ini: [0]=AWAL, [terakhir]=TERAKHIR */
+const recHistory=[];
 function stopRecording(){if(recording){try{rec.stop()}catch(e){}}}
  $('#recBtn').onclick=()=>{
   const tracks=mediaTracks();
@@ -755,7 +764,7 @@ function stopRecording(){if(recording){try{rec.stop()}catch(e){}}}
   rec.onstop=finishRec;rec.start(250);
   $('#recBtn').classList.add('rec');$('#recDot').classList.remove('hidden');
   $('#recLabel').textContent='RECORD ON';
-  toast('Perekaman dimulai — saat selesai, rekaman diputar OTOMATIS','ok',4000);
+  toast('Perekaman dimulai — saat selesai, diputar OTOMATIS','ok',4000);
   chatAdd('System','Perekaman dimulai.');
 };
 function finishRec(){
@@ -767,8 +776,8 @@ function finishRec(){
   recHistory.push({blob,url,name,size:blob.size});
   toast('Rekaman selesai ('+fmtSize(blob.size)+') — memutar OTOMATIS','ok',4200);
   chatAdd('System','Rekaman selesai: '+name+' — diputar otomatis.');
-  if(S.server)uploadRec(blob,name);
-  autoplayRec(recHistory.length-1);          /* ← PUTAR DENGAN SENDIRINYA */
+  if(netMode==='server')uploadRec(blob,name);
+  autoplayRec(recHistory.length-1);
 }
 function autoplayRec(idx){
   const r=recHistory[idx];if(!r)return;
@@ -778,12 +787,12 @@ function autoplayRec(idx){
     +(idx===0?' • REKAMAN AWAL':'')+(idx===recHistory.length-1?' • TERAKHIR':'');
   const pv=$('#playVideo');
   pv.src=r.url;
-  pv.play().then(()=>setPlayIcons(true)).catch(()=>{setPlayIcons(false);toast('Tekan ▶ untuk memutar rekaman','info',2600);});
+  pv.play().then(()=>setPlayIcons(true)).catch(()=>{setPlayIcons(false);toast('Tekan ▶ untuk memutar','info',2600);});
 }
 function uploadRec(blob,name){
   const fd=new FormData();fd.append('file',blob,name);
   fetch('api/upload',{method:'POST',body:fd}).then(r=>r.json())
-    .then(j=>{if(j.ok)chatAdd('System','Rekaman diunggah — publik dapat mengunduh: /recordings/'+j.name);}).catch(()=>{});
+    .then(j=>{if(j.ok)chatAdd('System','Rekaman diunggah: /recordings/'+j.name);}).catch(()=>{});
 }
  $('#dlBtn').onclick=()=>{
   if(!recHistory.length)return toast('Belum ada rekaman — tekan RECORD dulu','warn');
@@ -792,17 +801,10 @@ function uploadRec(blob,name){
   document.body.appendChild(a);a.click();a.remove();
   toast('Mengunduh '+r.name,'ok');
 };
-/* tombol AWAL & TERAKHIR */
- $('#pbFirst').onclick=()=>{
-  if(!recHistory.length)return toast('Belum ada rekaman','warn');
-  autoplayRec(0);
-};
- $('#pbLast').onclick=()=>{
-  if(!recHistory.length)return toast('Belum ada rekaman','warn');
-  autoplayRec(recHistory.length-1);
-};
+ $('#pbFirst').onclick=()=>{if(!recHistory.length)return toast('Belum ada rekaman','warn');autoplayRec(0);};
+ $('#pbLast').onclick=()=>{if(!recHistory.length)return toast('Belum ada rekaman','warn');autoplayRec(recHistory.length-1);};
 
-/* ================= PLAYER BAR ================= */
+/* ================= PLAYER ================= */
 let playOpen=false;
 function setPlayIcons(p){$('#iconPlay').classList.toggle('hidden',p);$('#iconPause').classList.toggle('hidden',!p);}
  $('#pbPlay').onclick=()=>{
@@ -820,12 +822,9 @@ function setPlayIcons(p){$('#iconPlay').classList.toggle('hidden',p);$('#iconPau
 function closePlay(){playOpen=false;$('#playOverlay').classList.remove('on');
   const pv=$('#playVideo');pv.pause();pv.removeAttribute('src');setPlayIcons(false);}
  $('#playVideo').addEventListener('ended',()=>{
-  /* setelah rekaman terakhir selesai → lanjut otomatis ke rekaman AWAL */
   if(!playOpen)return;
-  if(recHistory.length>1){
-    toast('Rekaman terakhir selesai → memutar rekaman AWAL otomatis','info',3000);
-    autoplayRec(0);
-  }else closePlay();
+  if(recHistory.length>1){toast('Rekaman terakhir selesai → memutar rekaman AWAL','info',3000);autoplayRec(0);}
+  else closePlay();
 });
  $('#pbTl').onclick=e=>{
   if(!playOpen)return;
@@ -864,23 +863,23 @@ function paintToggles(){
  $('#tAudio').onclick=()=>setSource('mic',!SRC.mic.stream);
  $('#tVideo').onclick=()=>setSource('cam',!SRC.cam.stream);
  $('#tShare').onclick=()=>setSource('scr',!SRC.scr.stream);
- $('#tSub').onclick=()=>{S.sub=!S.sub;paintToggles();updateCaption();renderAll();
+ $('#tSub').onclick=()=>{S.sub=!S.sub;paintToggles();updateCaption();sendState();renderAll();
   toast(S.sub?'Subtitle ON':'Subtitle OFF','info',1500);};
 
  $('#exitBtn').onclick=()=>{
   if(!confirm('Keluar dari ruang siaran?'))return;
+  netBye();
   Object.values(SRC).forEach(s=>{if(s.stream){const st=s.stream;s.stream=null;st.getTracks().forEach(t=>{t.onended=null;t.stop();});}});
   stopRecording();stopMeter();
-  if(S.server){try{navigator.sendBeacon('api/leave',JSON.stringify({id:clientId}))}catch(e){}}
   location.reload();
 };
 
 /* ================= ENGAGEMENT ================= */
  $('#likeBtn').onclick=()=>{S.like++;$('#likeVal').textContent=S.like;save();};
  $('#shareBtn').onclick=async()=>{
-  const link=location.origin+location.pathname+'  (CODE: '+JOIN_CODE+')';
-  try{if(navigator.share)await navigator.share({title:'RUANG SIARAN',text:'Gabung siaran live dengan code '+JOIN_CODE,url:location.href});
-  else{await navigator.clipboard.writeText(link);toast('Tautan + code disalin','ok');}}catch(e){}
+  const link=SITE_URL+'  (CODE: '+JOIN_CODE+')';
+  try{if(navigator.share)await navigator.share({title:'RUANG SIARAN',text:'Gabung siaran live — '+link,url:SITE_URL});
+  else{await navigator.clipboard.writeText(link);toast('Alamat website + code disalin','ok');}}catch(e){}
 };
 function paintSub(){
   $('#subBtn').classList.toggle('on',S.subscribed);
@@ -894,47 +893,300 @@ function paintSub(){
   paintSub();save();
 };
 
-/* ================= CHAT ================= */
-const localChat=[{id:1,name:'System',text:'Selamat datang di ruang siaran langsung.'}];let localId=1,chatLast=0;
-function renderChat(items){
-  $('#chatBox').innerHTML=items.slice(-60).map(m=>{
+/* ================= CHAT (terpadu) ================= */
+const chatItems=[{name:'System',text:'Selamat datang di ruang siaran langsung.'}];
+function chatRender(){
+  $('#chatBox').innerHTML=chatItems.slice(-60).map(m=>{
     const cls=m.name==='System'?'sys':(m.name===S.name?'me':'oth');
     return `<div class="cmsg"><b class="${cls}">${esc(m.name)}</b><span>${esc(m.text)}</span></div>`;
   }).join('');
   $('#chatBox').scrollTop=1e9;
 }
-async function chatAdd(name,text){
-  if(S.server){try{await fetch('api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,text})});}catch(e){}}
-  else{localChat.push({id:++localId,name,text});renderChat(localChat);}
+function chatAdd(name,text,broadcast=true){
+  chatItems.push({name,text});
+  if(chatItems.length>300)chatItems.splice(0,chatItems.length-300);
+  chatRender();
+  if(!broadcast)return;
+  if(netMode==='peer'){
+    if(isHub)hubBroadcastMsg({type:'chat',name,text});
+    else if(hubConn&&hubConn.open)hubConn.send({type:'chat',name,text});
+  }else if(netMode==='bc')bcPost({kind:'chat',name,text});
+  else if(netMode==='server'){try{fetch('api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,text})});}catch(e){}}
 }
 function sendChat(){const v=$('#chatInput').value.trim();if(!v)return;$('#chatInput').value='';chatAdd(S.name,v);}
  $('#chatSend').onclick=sendChat;
  $('#chatInput').addEventListener('keydown',e=>{if(e.key==='Enter')sendChat();});
-async function pollChat(){
-  if(!S.server)return;
-  try{const r=await fetch('api/chat?after='+chatLast,{cache:'no-store'});const j=await r.json();
-    if(j.items&&j.items.length){chatLast=j.items[j.items.length-1].id;renderChat(j.items);}
+
+/* =====================================================================
+   JARINGAN PESERTA — 3 Lapis:
+   1) server  : Flask lokal (jika dijalankan)
+   2) peer    : PeerJS P2P publik (GitHub Pages / lintas perangkat) ← UTAMA
+   3) bc      : BroadcastChannel (tab browser yang sama)
+   ===================================================================== */
+let netMode='none';
+let peer=null,isHub=false,hubConn=null,hubConns=[];
+const HUB_ID='rsroom-207446-hub-v2';
+const HUBPARTS=new Map();   /* hanya untuk hub */
+
+function setNetBadge(){
+  const b=$('#netBadge');if(!b)return;
+  b.textContent=netMode==='server'?'NET:SERVER':netMode==='peer'?(isHub?'NET:P2P·HUB':'NET:P2P'):netMode==='bc'?'NET:TAB':'NET:—';
+}
+function netInit(){
+  if(S.server){netMode='server';setNetBadge();hbServer(true);return;}
+  if(typeof Peer!=='undefined'){peerInit();return;}
+  bcInit();
+}
+function netBye(){
+  try{
+    if(netMode==='peer'){if(isHub)hubConns.forEach(c=>c.close());else if(hubConn&&hubConn.open)hubConn.send({type:'bye',id:clientId});}
+    else if(netMode==='bc')bcPost({kind:'bye',id:clientId,name:S.name});
+    else if(netMode==='server'){try{navigator.sendBeacon('api/leave',JSON.stringify({id:clientId}))}catch(e){}}
   }catch(e){}
 }
 
-/* ================= SERVER ================= */
-async function detectServer(){try{const r=await fetch('api/health',{cache:'no-store'});return r.ok}catch(e){}return false;}
-async function joinRoom(){
-  try{await fetch('api/join',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({id:clientId,name:S.name,host:true})});}catch(e){}
+/* ---------- PEERJS: HUB ---------- */
+function peerInit(){
+  try{
+    if(peer){try{peer.destroy()}catch(e){}peer=null;}
+    isHub=false;
+    const p=new Peer(HUB_ID,{debug:0});
+    peer=p;
+    p.on('open',()=>{isHub=true;netMode='peer';becomeHub();});
+    p.on('connection',conn=>{
+      hubConns.push(conn);
+      conn.on('open',()=>{try{conn.send({type:'welcome',roster:hubRoster(),live:S.live,liveStart:S.liveStart});}catch(e){}});
+      conn.on('data',d=>hubOnData(conn,d));
+      conn.on('close',()=>hubDrop(conn));
+      conn.on('error',()=>hubDrop(conn));
+    });
+    p.on('error',err=>{
+      if(err&&err.type==='unavailable-id'){becomeClient();}
+      else if(err&&err.type!=='peer-unavailable'){peerRetry();}
+    });
+    p.on('disconnected',()=>{try{if(!peer.destroyed)peer.reconnect();}catch(e){}});
+  }catch(e){peerRetry();}
 }
+function peerRetry(){netMode='none';setNetBadge();setTimeout(()=>{if(S.joined)peerInit();},4000);}
+function becomeHub(){
+  HUBPARTS.clear();
+  HUBPARTS.set(clientId,{id:clientId,name:S.name,mic:false,cam:false,share:false,sub:false,joined:Date.now()});
+  setNetBadge();
+  toast('Anda pintu masuk ruangan (HUB P2P) — peserta lain akan bergabung ke sini','ok',4200);
+  chatAdd('System','Jaringan P2P siap — peserta yang gabung dengan code '+JOIN_CODE+' akan muncul otomatis.');
+  sendState();hubBroadcast();
+}
+function hubRoster(){
+  return [...HUBPARTS.values()].map(p=>({id:p.id,name:p.name,mic:!!p.mic,cam:!!p.cam,share:!!p.share,sub:!!p.sub}));
+}
+function hubBroadcast(){
+  hubBroadcastMsg({type:'roster',parts:hubRoster(),live:S.live,liveStart:S.liveStart});
+  syncPartsFromRoster(hubRoster());
+}
+function hubBroadcastMsg(m){hubConns.forEach(c=>{try{if(c.open)c.send(m)}catch(e){}})}
+function hubDrop(conn){
+  hubConns=hubConns.filter(c=>c!==conn);
+  if(conn._pid){
+    const pt=HUBPARTS.get(conn._pid);
+    if(pt)chatAdd('System',pt.name+' keluar dari siaran.');
+    HUBPARTS.delete(conn._pid);
+    hubBroadcast();
+  }
+}
+function hubOnData(conn,d){
+  if(!d||!d.type)return;
+  switch(d.type){
+    case 'hello':
+      conn._pid=d.id;
+      HUBPARTS.set(d.id,{id:d.id,name:d.name||'Tamu',mic:false,cam:false,share:false,sub:false,joined:Date.now()});
+      chatAdd('System',(d.name||'Tamu')+' bergabung ke siaran.');
+      hubBroadcast();
+      break;
+    case 'state':
+      if(conn._pid&&HUBPARTS.has(conn._pid)){
+        Object.assign(HUBPARTS.get(conn._pid),{mic:!!d.mic,cam:!!d.cam,share:!!d.share,sub:!!d.sub});
+        hubBroadcast();
+      }
+      break;
+    case 'frame':
+      if(conn._pid&&d.data&&d.data.length<200000){
+        const pt=HUBPARTS.get(conn._pid);
+        if(pt){if(d.key==='cam')pt.frameCam=d.data;else pt.frameScr=d.data;}
+        hubBroadcastMsg({type:'frame',id:conn._pid,key:d.key,data:d.data});
+        if(conn._pid!==clientId){FRAMES.set(conn._pid+'|'+d.key,d.data);updateFrames();}
+      }
+      break;
+    case 'chat':
+      if(d.text)chatAdd(String(d.name||'Tamu').slice(0,30),String(d.text).slice(0,300),false);
+      break;
+    case 'bye':
+      const pt=HUBPARTS.get(d.id);
+      if(pt)chatAdd('System',pt.name+' keluar dari siaran.');
+      if(d.id)HUBPARTS.delete(d.id);
+      hubBroadcast();
+      break;
+  }
+}
+
+/* ---------- PEERJS: CLIENT ---------- */
+function becomeClient(){
+  try{
+    if(peer){try{peer.destroy()}catch(e){}peer=null;}
+    isHub=false;
+    const p=new Peer({debug:0});
+    peer=p;
+    p.on('open',()=>{
+      netMode='peer';setNetBadge();
+      hubConn=p.connect(HUB_ID,{reliable:true});
+      hubConn.on('open',()=>{
+        hubConn.send({type:'hello',id:clientId,name:S.name});
+        sendState();
+        toast('Tersambung ke ruangan P2P — Anda tampil di slot peserta','ok',3600);
+      });
+      hubConn.on('data',clientOnData);
+      hubConn.on('close',()=>{hubConn=null;PARTS.clear();FRAMES.clear();renderAll();peerRetry();});
+      hubConn.on('error',()=>{});
+    });
+    p.on('error',err=>{
+      if(err&&err.type==='peer-unavailable'){setTimeout(()=>{if(S.joined&&!isHub)peerInit();},2500);}
+    });
+  }catch(e){peerRetry();}
+}
+function clientOnData(d){
+  if(!d||!d.type)return;
+  switch(d.type){
+    case 'welcome':
+      syncPartsFromRoster(d.roster||[]);
+      if(d.live&&!S.live)setLive(true,true,true);
+      if(d.liveStart&&(!S.liveStart||d.liveStart<S.liveStart))S.liveStart=d.liveStart;
+      break;
+    case 'roster':
+      syncPartsFromRoster(d.parts||[]);
+      if(d.live&&!S.live)setLive(true,true,true);
+      if(!d.live&&S.live)setLive(false,true,true);
+      if(d.liveStart&&(!S.liveStart||d.liveStart<S.liveStart))S.liveStart=d.liveStart;
+      break;
+    case 'frame':
+      if(d.id&&d.id!==clientId&&d.data){FRAMES.set(d.id+'|'+d.key,d.data);updateFrames();}
+      break;
+    case 'chat':
+      if(d.text)chatAdd(String(d.name||'Tamu').slice(0,30),String(d.text).slice(0,300),false);
+      break;
+  }
+}
+function syncPartsFromRoster(parts){
+  const seen=new Set();
+  parts.forEach(p=>{
+    if(!p.id||p.id===clientId)return;   /* diri sendiri = slot 1-3 */
+    seen.add(p.id);
+    const ex=PARTS.get(p.id);
+    PARTS.set(p.id,{id:p.id,name:p.name,mic:!!p.mic,cam:!!p.cam,share:!!p.share,
+      slot:ex?ex.slot:null,joined:ex?ex.joined:Date.now()});
+    if(!PARTS.get(p.id).slot)PARTS.get(p.id).slot=firstFreePart();
+  });
+  [...PARTS.keys()].forEach(k=>{if(!seen.has(k))PARTS.delete(k)});
+  $('#viewersVal').textContent=parts.length;
+  renderAll();
+}
+
+/* ---------- BROADCAST CHANNEL (tab sama) ---------- */
+let bc=null;
+const bcSeen=new Map();
+function bcInit(){
+  try{
+    bc=new BroadcastChannel('rs-207446');
+    netMode='bc';setNetBadge();
+    bc.onmessage=e=>bcOn(e.data);
+    bcPost({kind:'hb',id:clientId,name:S.name,mic:!!SRC.mic.stream,cam:!!SRC.cam.stream,share:!!SRC.scr.stream,t:Date.now()});
+    toast('Mode tab: peserta di tab lain terdeteksi otomatis','info',3600);
+  }catch(e){netMode='none';setNetBadge();}
+}
+function bcPost(m){try{if(bc)bc.postMessage(m)}catch(e){}}
+function bcOn(d){
+  if(!d||!d.kind||d.id===clientId)return;
+  switch(d.kind){
+    case 'hb':
+      bcSeen.set(d.id,Date.now());
+      {
+        const ex=PARTS.get(d.id);
+        PARTS.set(d.id,{id:d.id,name:d.name,mic:!!d.mic,cam:!!d.cam,share:!!d.share,
+          slot:ex?ex.slot:null,joined:ex?ex.joined:Date.now()});
+        if(!PARTS.get(d.id).slot)PARTS.get(d.id).slot=firstFreePart();
+      }
+      if(d.liveStart&&(!S.liveStart||d.liveStart<S.liveStart))S.liveStart=d.liveStart;
+      renderAll();break;
+    case 'frame':FRAMES.set(d.id+'|'+d.key,d.data);updateFrames();break;
+    case 'chat':chatAdd(d.name,d.text,false);break;
+    case 'live':
+      if(d.on&&!S.live)setLive(true,true,true);
+      if(d.liveStart&&(!S.liveStart||d.liveStart<S.liveStart))S.liveStart=d.liveStart;
+      break;
+    case 'bye':{
+      const p=PARTS.get(d.id);if(p)chatAdd('System',p.name+' keluar dari siaran.');
+      PARTS.delete(d.id);bcSeen.delete(d.id);renderAll();break;}
+  }
+}
+setInterval(()=>{
+  if(netMode!=='bc')return;
+  const now=Date.now();
+  [...bcSeen.entries()].forEach(([k,t])=>{if(now-t>6000){const p=PARTS.get(k);if(p)chatAdd('System',p.name+' keluar (timeout).');PARTS.delete(k);bcSeen.delete(k);renderAll();}});
+  bcPost({kind:'hb',id:clientId,name:S.name,mic:!!SRC.mic.stream,cam:!!SRC.cam.stream,share:!!SRC.scr.stream,t:now,liveStart:S.liveStart});
+},2000);
+
+/* ---------- KIRIM STATE & FRAME ---------- */
+function sendState(){
+  if(!S.joined)return;
+  const st={mic:!!SRC.mic.stream,cam:!!SRC.cam.stream,share:!!SRC.scr.stream,sub:!!S.sub};
+  if(netMode==='peer'){
+    if(isHub){const me=HUBPARTS.get(clientId);if(me){Object.assign(me,st);hubBroadcast();}}
+    else if(hubConn&&hubConn.open)hubConn.send(Object.assign({type:'state'},st));
+  }else if(netMode==='bc')bcPost(Object.assign({kind:'hb',id:clientId,name:S.name,t:Date.now(),liveStart:S.liveStart},st));
+}
+setInterval(()=>{if(S.joined)sendState();},3000);
+
+const capV=document.createElement('video');capV.muted=true;capV.playsInline=true;capV.style.display='none';document.body.appendChild(capV);
+const capC=document.createElement('canvas');
+function captureFrame(key){
+  const stream=key==='scr'?SRC.scr.stream:SRC.cam.stream;
+  if(!stream)return;
+  try{
+    if(capV.srcObject!==stream){capV.srcObject=stream;capV.play().catch(()=>{});}
+    if(capV.readyState<2)return;
+    const vw=capV.videoWidth||640,vh=capV.videoHeight||360;
+    const w=240,h=Math.max(1,Math.round(w*vh/vw));
+    capC.width=w;capC.height=h;
+    capC.getContext('2d').drawImage(capV,0,0,w,h);
+    const data=capC.toDataURL('image/jpeg',.45);
+    if(netMode==='peer'){
+      if(isHub){
+        const me=HUBPARTS.get(clientId);
+        if(me){if(key==='cam')me.frameCam=data;else me.frameScr=data;}
+        hubBroadcastMsg({type:'frame',id:clientId,key,data});
+      }else if(hubConn&&hubConn.open)hubConn.send({type:'frame',key,data});
+    }else if(netMode==='bc')bcPost({kind:'frame',id:clientId,key,data});
+    else if(netMode==='server'){
+      fetch('api/frame',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({id:clientId,key,frame:data})}).catch(()=>{});
+    }
+  }catch(e){}
+}
+setInterval(()=>{
+  if(!S.joined)return;
+  if(SRC.scr.stream)captureFrame('scr');
+  else if(SRC.cam.stream)captureFrame('cam');
+},1300);
+
+/* ---------- SERVER (opsional, hanya bila python dijalankan) ---------- */
+async function detectServer(){try{const r=await fetch('api/health',{cache:'no-store'});return r.ok}catch(e){}return false;}
+async function joinServer(){try{await fetch('api/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:clientId,name:S.name,host:true})});}catch(e){}}
 async function postStatus(){try{await fetch('api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:S.live?'live':'offline'})})}catch(e){}}
-async function heartbeat(force){
-  if(!S.server){$('#viewersVal').textContent='1';if(force)renderAll();return;}
+async function hbServer(force){
+  if(netMode!=='server')return;
   try{
     const r=await fetch('api/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({id:clientId,name:S.name,host:true,
-        mic:!!SRC.mic.stream,cam:!!SRC.cam.stream,share:!!SRC.scr.stream})});
-    const j=await r.json();
-    if(!j.ok)return;
+      body:JSON.stringify({id:clientId,name:S.name,host:true,mic:!!SRC.mic.stream,cam:!!SRC.cam.stream,share:!!SRC.scr.stream})});
+    const j=await r.json();if(!j.ok)return;
     $('#viewersVal').textContent=j.viewers;
-    /* sinkron waktu mulai: ditentukan oleh peserta yang login PERTAMA */
-    if(j.live_started_at&&j.live_started_at>0)S.liveStart=j.live_started_at*1000;
     if(j.status==='live'&&!S.live)setLive(true,true,true);
     if(j.status!=='live'&&S.live)setLive(false,true,true);
     FRAMES.clear();(j.frames||[]).forEach(f=>FRAMES.set(f.id+'|'+f.key,f.frame));
@@ -948,31 +1200,20 @@ async function heartbeat(force){
       if(!PARTS.get(p.id).slot)PARTS.get(p.id).slot=firstFreePart();
       if(!ex)chatAdd('System',p.name+' bergabung ke siaran.');
     });
-    [...PARTS.keys()].forEach(k=>{if(!seen.has(k)){chatAdd('System',PARTS.get(k).name+' keluar dari siaran.');PARTS.delete(k);}});
+    [...PARTS.keys()].forEach(k=>{if(!seen.has(k))PARTS.delete(k)});
     if(force)renderAll();
     renderAll();updateFrames();
-  }catch(e){S.server=false;$('#viewersVal').textContent='1';}
+  }catch(e){netMode='none';setNetBadge();}
 }
-/* kirim frame kamera/share nyata ke server */
-const capV=document.createElement('video');capV.muted=true;capV.playsInline=true;capV.style.display='none';document.body.appendChild(capV);
-const capC=document.createElement('canvas');
-function postFrame(key){
-  const stream=key==='scr'?SRC.scr.stream:SRC.cam.stream;
-  if(!stream)return;
-  if(capV.srcObject!==stream){capV.srcObject=stream;capV.play().catch(()=>{});}
-  if(capV.readyState<2)return;
-  const vw=capV.videoWidth||640,vh=capV.videoHeight||360;
-  const w=240,h=Math.max(1,Math.round(w*vh/vw));
-  capC.width=w;capC.height=h;
-  capC.getContext('2d').drawImage(capV,0,0,w,h);
-  fetch('api/frame',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({id:clientId,key,frame:capC.toDataURL('image/jpeg',.45)})}).catch(()=>{});
+setInterval(()=>hbServer(false),2000);
+let chatLast=0;
+async function pollChat(){
+  if(netMode!=='server')return;
+  try{const r=await fetch('api/chat?after='+chatLast,{cache:'no-store'});const j=await r.json();
+    (j.items||[]).forEach(it=>{if(it.id>chatLast){chatLast=it.id;chatAdd(it.name,it.text,false);}});
+  }catch(e){}
 }
-setInterval(()=>{
-  if(!S.server)return;
-  if(SRC.scr.stream)postFrame('scr');
-  else if(SRC.cam.stream)postFrame('cam');
-},1300);
+setInterval(pollChat,2500);
 
 /* ================= RENDER & TICK ================= */
 function renderAll(){renderSlots();renderParts();paintToggles();paintSub();}
@@ -988,10 +1229,8 @@ setInterval(()=>{
   }
   updateResFps();
 },250);
-setInterval(()=>heartbeat(false),2000);
-setInterval(pollChat,2500);
 
-/* ================= MASUK: USERNAME → CODE → OTOMATIS LIVE ================= */
+/* ================= MASUK ================= */
 function startApp(name){
   S.name=name;S.joined=true;
   $('#gate').classList.add('hidden');
@@ -999,11 +1238,14 @@ function startApp(name){
   $('#modeSub').textContent='PESERTA: '+S.name+' • CODE '+JOIN_CODE;
   $('#hostName').textContent=S.name;
   $('#havTxt').textContent=(S.name[0]||'H').toUpperCase();
-  /* OTOMATIS: status hijau menyala, HOST STANDBY → HOST LIVE, waktu mulai berjalan */
-  setLive(true,true);
-  if(S.server){joinRoom();postStatus();}
+  setLive(true,true);                    /* OTOMATIS LIVE (hijau) */
+  if(S.server){netMode='server';joinServer();postStatus();}
+  else if(typeof Peer!=='undefined')peerInit();
+  else bcInit();
+  setNetBadge();
+  sendState();
   chatAdd('System',S.name+' telah bergabung — siaran langsung otomatis dimulai.');
-  toast('Selamat datang, '+S.name+'! Siaran OTOMATIS LIVE — aktifkan AUDIO/VIDEO/SHARE/SUBTITLE lalu RECORD.','ok',5200);
+  toast('Selamat datang, '+S.name+'! LIVE otomatis. Peserta lain yang gabung muncul di slot 4–12.','ok',5200);
 }
  $('#gateJoin').onclick=()=>{
   $('#gate').classList.add('hidden');
@@ -1040,7 +1282,7 @@ function startApp(name){
   $('#jd1').classList.add('a');$('#jd2').classList.remove('a');
 };
 
-/* ================= LOADING 00.01% → 10.00% ================= */
+/* ================= LOADING ================= */
 const SEG=16,segs=[];for(let i=0;i<SEG;i++){const s=document.createElement('div');s.className='seg';$('#loadBar').appendChild(s);segs.push(s);}
 let pct=0;
 function renderPct(){$('#loadPct').textContent=pct.toFixed(2).padStart(5,'0')+'%';
@@ -1056,10 +1298,10 @@ async function boot(){
     ['Memeriksa MediaDevices (mik/kamera/layar)',async()=>{if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia))throw 0}],
     ['Memeriksa MediaRecorder (perekam video)',async()=>{if(typeof MediaRecorder==='undefined')throw 0}],
     ['Menyiapkan Web Audio API (deteksi suara)',async()=>{if(!(window.AudioContext||window.webkitAudioContext))throw 0}],
-    ['Menyiapkan gerbang (code ruangan 207446)',async()=>{paintSub()}],
-    ['Menghubungi server Python (peserta nyata)',async()=>{S.server=await detectServer()}],
+    ['Memuat jaringan P2P peserta (PeerJS)',async()=>{if(typeof Peer==='undefined')console.warn('PeerJS tidak termuat — fallback tab');}],
+    ['Mendeteksi server lokal (opsional)',async()=>{S.server=await detectServer()}],
     ['Membangun 12 slot siaran',async()=>{renderAll()}],
-    ['Memuat daftar peserta & status siaran',async()=>{if(S.server)await heartbeat(true)}],
+    ['Menyiapkan gerbang (website + code 207446)',async()=>{paintSub();chatRender()}],
     ['Memasuki gerbang ruang siaran…',async()=>{await sleep(150)}],
   ];
   for(let i=0;i<steps.length;i++){
@@ -1074,10 +1316,9 @@ async function boot(){
   $('#gate').classList.remove('hidden');
 }
 
-/* ================= START ================= */
 window.addEventListener('beforeunload',()=>{
   mediaTracks().forEach(t=>t.stop());
-  if(S.server){try{navigator.sendBeacon('api/leave',JSON.stringify({id:clientId}))}catch(e){}}
+  netBye();
 });
 sizeCv();vizLoop();boot();
 </script>
