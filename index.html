@@ -341,7 +341,7 @@ body.ready #app{opacity:1}
     <h2>RUANG SIARAN</h2>
     <div class="sub">SIARAN LANGSUNG • LIVE MEET</div>
     <button class="gbtn2" id="gateJoin">👥 GABUNG SIARAN — SEBAGAI PESERTA</button>
-    <div class="gnote">Setelah <b>username</b> + <b>code ruangan</b>: siaran <b>OTOMATIS LIVE</b> (hijau).<br>
+    <div class="gnote">Suara <b>MICROPHONE</b> & <b>SHARE LAYAR</b> kini keluar di speaker.<br>
       Peserta lain muncul di <b>slot 4–12</b> — tekan <b>⤢ PERBESAR</b> untuk layar penuh jernih.</div>
     <div class="gsite"><b>WEBSITE:</b><br>indonesiamajukaribmu.github.io/Room-Meeting</div>
     <div class="gcode">CODE RUANGAN SIARAN LIVE: <b>207446</b></div>
@@ -416,9 +416,9 @@ body.ready #app{opacity:1}
         <button class="rbtn" id="pbRestart" title="Reset uptime"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></button>
         <button class="rbtn main" id="pbPlay" title="Putar rekaman terakhir"><span id="iconPlay"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span><span id="iconPause" class="hidden"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></span></button>
         <button class="rbtn" id="pbSpeed" style="width:auto;border-radius:8px;padding:0 9px;font-weight:800;font-size:12px">1x</button>
-        <button class="rbtn" id="pbMute" title="Monitor suara"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path id="volWave" d="M16.5 8.5a5 5 0 0 1 0 7"/></svg></button>
-        <input type="range" class="vol" id="pbVol" min="0" max="100" value="60" title="Volume monitor">
-        <button class="abtn2 none" id="echoBtn" title="Ganti mode suara monitor">
+        <button class="rbtn" id="pbMute" title="Speaker: bunyi/bisukan (mic & share)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path id="volWave" d="M16.5 8.5a5 5 0 0 1 0 7"/></svg></button>
+        <input type="range" class="vol" id="pbVol" min="0" max="100" value="60" title="Volume speaker (mic & share)">
+        <button class="abtn2 none" id="echoBtn" title="Ganti mode suara mic: pemantul (echo) / tanpa pantul">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>
           <span id="echoLabel">SUARA: TANPA PANTUL</span>
         </button>
@@ -556,40 +556,88 @@ try{Object.assign(S,JSON.parse(localStorage.getItem('ruangsiaran')||'{}'),{serve
 S.speedIdx=1;S.sub=false;
 const save=()=>{try{localStorage.setItem('ruangsiaran',JSON.stringify({like:S.like,subs:S.subs,followers:S.followers,subscribed:S.subscribed,totalLive:S.totalLive,monVol:S.monVol,echoMode:S.echoMode,echoLvl:S.echoLvl}))}catch(e){}};
 
-/* ================= SUMBER MEDIA (NYATA) ================= */
+/* ================= AUDIO: SPEAKER BUS (MIC + SHARE ke speaker) ================= */
 const SRC={
   mic:{id:'mic',name:'Mic 1',icon:'mic',letter:'M',color:'g',kind:'audio',stream:null},
   cam:{id:'cam',name:'Kamera',icon:'cam',letter:'K',color:'t',kind:'video',stream:null},
   scr:{id:'scr',name:'Share Layar',icon:'scr',letter:'S',color:'o',kind:'screen',stream:null}
 };
 let audioCtx=null,analysers={};
-function ensureCtx(){audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();audioCtx.resume();}
-let mSrc=null,mMaster=null,mDry=null,mWet=null,mDelay=null,mFb=null;
+let spkMaster=null;                 /* bus output ke speaker (semua suara lewat sini) */
+/* Workaround bug Chrome: mic/share Web Audio bisa bisu kecuali stream juga
+   dipasang ke elemen <audio> (bisu). Elemen ini hanya "membangunkan" pipa audio. */
+const silenceFixEls=new Map();
+function ensureCtx(){
+  if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended')audioCtx.resume();
+  if(!spkMaster){
+    spkMaster=audioCtx.createGain();
+    spkMaster.gain.value=S.monMuted?0:S.monVol;
+    spkMaster.connect(audioCtx.destination);
+  }
+  return audioCtx;
+}
+function silenceFix(stream){
+  if(!stream)return;
+  if(silenceFixEls.has(stream.id))return;
+  const a=document.createElement('audio');
+  a.srcObject=stream;a.muted=true;a.autoplay=true;
+  a.style.display='none';
+  document.body.appendChild(a);
+  a.play().catch(()=>{});
+  silenceFixEls.set(stream.id,a);
+}
+function stopSilenceFix(stream){
+  if(!stream)return;
+  const a=silenceFixEls.get(stream.id);
+  if(a){a.srcObject=null;a.remove();silenceFixEls.delete(stream.id);}
+}
+/* rantai mic: dry + echo (pemantul) -> speaker bus */
+let mSrc=null,mDry=null,mWet=null,mDelay=null,mFb=null;
 function buildMonitor(stream){
   teardownMonitor();
   ensureCtx();
   mSrc=audioCtx.createMediaStreamSource(stream);
-  mMaster=audioCtx.createGain();mMaster.gain.value=S.monMuted?0:S.monVol;
   mDry=audioCtx.createGain();mDry.gain.value=1;
   mWet=audioCtx.createGain();mWet.gain.value=S.echoMode==='echo'?S.echoLvl:0;
   mDelay=audioCtx.createDelay(1.2);mDelay.delayTime.value=.28;
   mFb=audioCtx.createGain();mFb.gain.value=S.echoMode==='echo'?S.echoLvl*.65:0;
-  mSrc.connect(mDry);mDry.connect(mMaster);
-  mSrc.connect(mDelay);mDelay.connect(mFb);mFb.connect(mDelay);mDelay.connect(mWet);mWet.connect(mMaster);
-  mMaster.connect(audioCtx.destination);
+  mSrc.connect(mDry);mDry.connect(spkMaster);
+  mSrc.connect(mDelay);mDelay.connect(mFb);mFb.connect(mDelay);mDelay.connect(mWet);mWet.connect(spkMaster);
   const an=audioCtx.createAnalyser();an.fftSize=2048;an.smoothingTimeConstant=.8;
   mSrc.connect(an);analysers['mic']={an,src:mSrc,buf:new Uint8Array(an.fftSize)};
 }
 function teardownMonitor(){
   if(analysers.mic){try{analysers.mic.src.disconnect()}catch(e){}delete analysers.mic;}
-  [mDry,mWet,mDelay,mFb,mMaster,mSrc].forEach(n=>{try{n&&n.disconnect()}catch(e){}});
-  mSrc=mMaster=mDry=mWet=mDelay=mFb=null;
+  [mDry,mWet,mDelay,mFb,mSrc].forEach(n=>{try{n&&n.disconnect()}catch(e){}});
+  mSrc=mDry=mWet=mDelay=mFb=null;
+}
+/* rantai share layar: audio layar -> speaker bus (TANPA echo) */
+let scrNodes=null;
+function attachScrAudio(stream){
+  detachScrAudio();
+  ensureCtx();
+  silenceFix(stream);
+  const s=audioCtx.createMediaStreamSource(stream);
+  const g=audioCtx.createGain();g.gain.value=1;
+  s.connect(g);g.connect(spkMaster);
+  const an=audioCtx.createAnalyser();an.fftSize=2048;an.smoothingTimeConstant=.8;
+  s.connect(an);
+  scrNodes={src:s,gain:g};
+  analysers['scr']={an,src:s,buf:new Uint8Array(an.fftSize)};
+}
+function detachScrAudio(){
+  if(analysers.scr){try{analysers.scr.src.disconnect()}catch(e){}delete analysers.scr;}
+  if(scrNodes){try{scrNodes.src.disconnect();scrNodes.gain.disconnect()}catch(e){}scrNodes=null;}
 }
 function applyEcho(){
   if(!mWet)return;
   const on=S.echoMode==='echo';
   mWet.gain.value=on?S.echoLvl:0;
   mFb.gain.value=on?S.echoLvl*.65:0;
+}
+function applySpeakerVol(){
+  if(spkMaster)spkMaster.gain.value=S.monMuted?0:S.monVol;
 }
 function removeAnalyser(id){if(analysers[id]){try{analysers[id].src.disconnect()}catch(e){}delete analysers[id];}}
 const mediaTracks=()=>[
@@ -608,20 +656,28 @@ async function setSource(id,on){
       else src.stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
     }catch(e){toast('Akses '+(id==='scr'?'layar':'perangkat')+' ditolak: '+e.name,'warn');return false;}
     src.stream.getTracks().forEach(t=>t.onended=()=>{if(SRC[id].stream)setSource(id,false);});
-    if(id==='mic')buildMonitor(src.stream);
-    else if(src.stream.getAudioTracks().length){
-      ensureCtx();
-      const s=audioCtx.createMediaStreamSource(src.stream);
-      const an=audioCtx.createAnalyser();an.fftSize=2048;an.smoothingTimeConstant=.8;
-      s.connect(an);analysers[id]={an,src:s,buf:new Uint8Array(an.fftSize)};
+    if(id==='mic'){
+      buildMonitor(src.stream);                 /* mic -> speaker (dengan mode echo) */
+      silenceFix(src.stream);
+      if(!S.monMuted)toast('Monitor suara aktif — suara MIC keluar di speaker (volume di player bar). Gunakan headset agar tidak terjadi umpan balik.','info',5200);
+    }else if(id==='scr'){
+      if(src.stream.getAudioTracks().length){
+        attachScrAudio(src.stream);             /* audio layar -> speaker */
+        toast('Share layar AKTIF dengan AUDIO — suara dari layar keluar di speaker','ok',5200);
+        chatAdd('System','Share layar + AUDIO diaktifkan (terdengar di speaker).');
+      }else{
+        toast('Share layar AKTIF (tanpa audio — pilih "Bagikan tab" & centang "Bagikan audio")','info',5200);
+        chatAdd('System','Share layar diaktifkan.');
+      }
+    }else{
+      toast(src.name+' AKTIF','ok');
+      chatAdd('System',src.name+' diaktifkan.');
     }
-    if(id==='mic'&&!S.monMuted)toast('Monitor suara aktif — gunakan headset agar tidak terjadi umpan balik.','info',4000);
-    toast(src.name+' AKTIF','ok');
-    chatAdd('System',src.name+' diaktifkan.');
   }else{
-    if(src.stream){const st=src.stream;src.stream=null;st.getTracks().forEach(t=>{t.onended=null;t.stop();});}
+    if(src.stream){const st=src.stream;src.stream=null;st.getTracks().forEach(t=>{t.onended=null;t.stop();});stopSilenceFix(st);}
+    if(id==='mic'){teardownMonitor();}
+    if(id==='scr'){detachScrAudio();}
     removeAnalyser(id);
-    if(id==='mic')teardownMonitor();
     if(recording)stopRecording();
     toast(src.name+' dimatikan','info',1500);
     chatAdd('System',src.name+' dimatikan.');
@@ -750,7 +806,7 @@ function openZoom(i){
     }else{
       const M={mic:['micOff','MIC OFF'],cam:['camOff','VIDEO OFF'],scr:['scrOff','SHARE OFF']}[src.id];
       body.innerHTML=`<div class="zbigin"><div class="ph off">${PH[M[0]]}</div><div class="t off">${M[1]}</div></div>`;
-      $('#zNote').textContent='BELUM AKTIF — NYALAKAN LEWAT TOMBOL BAR BAWAH, TAMPILAN INI OTOMATIS MENGIKUTI';
+      $('#zNote').textContent='BELUM AKTIF — NYALAKAN LEWAT TOMBOL BAR BAWAH';
     }
   }else{
     const p=info.part;
@@ -1105,11 +1161,11 @@ function closePlay(){playOpen=false;$('#playOverlay').classList.remove('on');
 };
  $('#pbMute').onclick=()=>{
   S.monMuted=!S.monMuted;
-  if(mMaster)mMaster.gain.value=S.monMuted?0:S.monVol;
+  applySpeakerVol();
   $('#volWave').style.opacity=S.monMuted?0:1;
-  toast(S.monMuted?'Monitor dibisukan':'Monitor aktif','info',1500);
+  toast(S.monMuted?'Speaker dibisukan (mic & share)':'Speaker aktif — suara mic & share keluar','info',1500);
 };
- $('#pbVol').oninput=e=>{S.monVol=e.target.value/100;if(mMaster&&!S.monMuted)mMaster.gain.value=S.monVol;save();};
+ $('#pbVol').oninput=e=>{S.monVol=e.target.value/100;applySpeakerVol();save();};
  $('#pbRestart').onclick=()=>{if(playOpen){$('#playVideo').currentTime=0;return;}S.since=Date.now();};
  $('#pbFs').onclick=()=>{document.fullscreenElement?document.exitFullscreen():document.querySelector('.studio').requestFullscreen&&document.querySelector('.studio').requestFullscreen();};
 
@@ -1151,7 +1207,7 @@ function paintToggles(){
  $('#exitBtn').onclick=()=>{
   if(!confirm('Keluar dari ruang siaran?'))return;
   netBye();
-  Object.values(SRC).forEach(s=>{if(s.stream){const st=s.stream;s.stream=null;st.getTracks().forEach(t=>{t.onended=null;t.stop();});}});
+  Object.values(SRC).forEach(s=>{if(s.stream){const st=s.stream;s.stream=null;st.getTracks().forEach(t=>{t.onended=null;t.stop();});stopSilenceFix(st);}});
   stopRecording();stopMeter();
   location.reload();
 };
@@ -1200,14 +1256,12 @@ function sendChat(){const v=$('#chatInput').value.trim();if(!v)return;$('#chatIn
  $('#chatInput').addEventListener('keydown',e=>{if(e.key==='Enter')sendChat();});
 
 /* =====================================================================
-   JARINGAN 3 LAPIS + LOADER PeerJS NON-BLOCKING (anti-membeku)
+   JARINGAN 3 LAPIS + LOADER PeerJS NON-BLOCKING
    ===================================================================== */
 let netMode='none',netConnecting=false;
 let peer=null,isHub=false,hubConn=null,hubConns=[];
 const HUB_ID='rsroom-207446-hub-v2';
 const HUBPARTS=new Map();
-
-/* Muat PeerJS DINAMIS — halaman tidak pernah menunggu CDN */
 const PEER_CDNS=[
   'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',
   'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js'
@@ -1222,8 +1276,7 @@ function loadPeerJS(timeout=6000){
     const tryNext=()=>{
       if(i>=PEER_CDNS.length)return finish(false);
       const s=document.createElement('script');
-      s.src=PEER_CDNS[i++];
-      s.async=true;
+      s.src=PEER_CDNS[i++];s.async=true;
       s.onload=()=>finish(typeof Peer!=='undefined');
       s.onerror=()=>{s.remove();tryNext();};
       document.head.appendChild(s);
@@ -1233,7 +1286,6 @@ function loadPeerJS(timeout=6000){
   });
   return peerLoadPromise;
 }
-
 function setNetBadge(){
   const b=$('#netBadge');if(!b)return;
   if(netConnecting){b.textContent='NET:…';return;}
@@ -1550,10 +1602,10 @@ function startApp(name){
   $('#havTxt').textContent=(S.name[0]||'H').toUpperCase();
   setLive(true,true);
   if(S.server){netMode='server';setNetBadge();joinServer();postStatus();}
-  else netInit();   /* non-blocking: PeerJS dimuat di belakang, fallback otomatis */
+  else netInit();
   sendState();
   chatAdd('System',S.name+' telah bergabung — siaran langsung otomatis dimulai.');
-  toast('Selamat datang, '+S.name+'! LIVE otomatis. Gunakan ⤢ PERBESAR di tiap slot.','ok',5200);
+  toast('Selamat datang, '+S.name+'! Aktifkan AUDIO (suara keluar di speaker) atau SHARE dengan audio.','ok',5200);
 }
  $('#gateJoin').onclick=()=>{
   $('#gate').classList.add('hidden');
@@ -1590,7 +1642,7 @@ function startApp(name){
   $('#jd1').classList.add('a');$('#jd2').classList.remove('a');
 };
 
-/* ================= LOADING CEPAT + LEWATI + PENGAMAN ================= */
+/* ================= LOADING CEPAT ================= */
 const SEG=16,segs=[];for(let i=0;i<SEG;i++){const s=document.createElement('div');s.className='seg';$('#loadBar').appendChild(s);segs.push(s);}
 let pct=0,bootSkip=false,bootDone=false;
 function renderPct(){$('#loadPct').textContent=pct.toFixed(2).padStart(5,'0')+'%';
@@ -1618,7 +1670,6 @@ function finishBoot(){
   $('#gate').classList.remove('hidden');
 }
 async function boot(){
-  /* pengaman: apa pun yang terjadi, loading tutup maksimal 6,5 dtk */
   setTimeout(finishBoot,6500);
   renderPct();
   const steps=[
@@ -1626,8 +1677,8 @@ async function boot(){
     ['Memeriksa mesin grafis (canvas)',async()=>{if(!document.createElement('canvas').getContext('2d'))throw 0}],
     ['Memeriksa MediaDevices (mik/kamera/layar)',async()=>{if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia))throw 0}],
     ['Memeriksa MediaRecorder (perekam video)',async()=>{if(typeof MediaRecorder==='undefined')throw 0}],
-    ['Menyiapkan Web Audio API (echo/pemantul)',async()=>{if(!(window.AudioContext||window.webkitAudioContext))throw 0}],
-    ['Muat jaringan P2P di belakang (PeerJS)',async()=>{loadPeerJS(6000)}],   /* TIDAK menunggu */
+    ['Menyiapkan Web Audio + speaker bus',async()=>{if(!(window.AudioContext||window.webkitAudioContext))throw 0}],
+    ['Muat jaringan P2P di belakang (PeerJS)',async()=>{loadPeerJS(6000)}],
     ['Mendeteksi server lokal (opsional)',async()=>{S.server=await detectServer()}],
     ['Membangun 12 slot + mode perbesar',async()=>{renderAll()}],
     ['Menyiapkan gerbang (website + code 207446)',async()=>{chatRender()}],
